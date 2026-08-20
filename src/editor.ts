@@ -3,6 +3,7 @@ import { HEAT_DECAY } from "./config";
 import { THEME } from "./blocks/defs";
 import { TOOLBOX } from "./blocks/toolbox";
 import { workspaceToScript } from "./blocks/serialize";
+import { hintFor, HINT_SOURCE } from "./blocks/hints";
 import { scriptToState } from "./blocks/state";
 import type { Script } from "./script/ast";
 
@@ -44,6 +45,7 @@ export class Editor {
     // UI 事件（選取、捲動、拖曳中）不代表程式碼有變，不必重新編譯腳本
     this.workspace.addChangeListener((e) => {
       if (e.isUiEvent) return;
+      this.updateHints();
       onChange();
     });
 
@@ -63,6 +65,35 @@ export class Editor {
     this.lastCycle = -1;
     this.headId = null;
     Blockly.serialization.workspaces.load(scriptToState(script), this.workspace);
+    this.updateHints();
+  }
+
+  /**
+   * 重算每塊積木上的代價提示。
+   *
+   * 必須用 Events.disable() 包起來：setValue 會發出 BLOCK_CHANGE 事件，
+   * 而我們正是在變更監聽器裡呼叫這個函式 —— 不擋掉就是無窮遞迴。
+   */
+  private updateHints(): void {
+    Blockly.Events.disable();
+    try {
+      // 工具箱裡的積木也要標上代價 —— 學生在「要不要拖它下來」的當下
+      // 就該看得到價碼，而不是拖下來才發現
+      const flyout = this.workspace.getFlyout()?.getWorkspace();
+      const blocks = flyout
+        ? [...this.workspace.getAllBlocks(false), ...flyout.getAllBlocks(false)]
+        : this.workspace.getAllBlocks(false);
+      for (const block of blocks) {
+        const source = HINT_SOURCE[block.type];
+        if (!source) continue;
+        const field = block.getField("HINT");
+        if (!field) continue;
+        const text = hintFor(block.type, Number(block.getFieldValue(source)));
+        if (text !== null && field.getValue() !== text) field.setValue(text);
+      }
+    } finally {
+      Blockly.Events.enable();
+    }
   }
 
   read(): Script {

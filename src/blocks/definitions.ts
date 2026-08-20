@@ -42,12 +42,16 @@ export const BLOCK_DEFS = [
   },
   {
     type: "ls_wait",
-    message0: "等待 %1 秒",
-    args0: [{ type: "field_number", name: "SECONDS", value: 0.1, min: 0, max: 3, precision: 0.05 }],
+    // HINT 是動態標籤，由 editor.ts 依欄位值即時填入「下一發 ×2.6」
+    message0: "等待 %1 秒 %2",
+    args0: [
+      { type: "field_number", name: "SECONDS", value: 0.1, min: 0, max: 3, precision: 0.05 },
+      { type: "field_label", name: "HINT", text: "" },
+    ],
     previousStatement: null,
     nextStatement: null,
     colour: CONTROL,
-    tooltip: "暫停這段時間再繼續執行下一塊積木",
+    tooltip: "暫停這段時間再繼續執行。間隔越久，下一發子彈的傷害越高（蓄力）",
   },
   {
     type: "ls_fire",
@@ -87,29 +91,38 @@ export const BLOCK_DEFS = [
   },
   {
     type: "ls_set_speed",
-    message0: "子彈速度設為 %1",
-    args0: [{ type: "field_number", name: "VALUE", value: 420, min: 60, max: 1200, precision: 10 }],
+    message0: "子彈速度設為 %1 %2",
+    args0: [
+      { type: "field_number", name: "VALUE", value: 420, min: 60, max: 1200, precision: 10 },
+      { type: "field_label", name: "HINT", text: "" },
+    ],
     previousStatement: null,
     nextStatement: null,
     colour: STATE,
-    tooltip: "影響之後發射的子彈",
+    tooltip: "影響之後發射的子彈。速度越高，角色移動越慢",
   },
   {
     type: "ls_set_size",
-    message0: "子彈大小設為 %1",
-    args0: [{ type: "field_number", name: "VALUE", value: 4, min: 1, max: 16, precision: 1 }],
+    message0: "子彈大小設為 %1 %2",
+    args0: [
+      { type: "field_number", name: "VALUE", value: 4, min: 1, max: 16, precision: 1 },
+      { type: "field_label", name: "HINT", text: "" },
+    ],
     previousStatement: null,
     nextStatement: null,
     colour: STATE,
-    tooltip: "影響之後發射的子彈",
+    tooltip: "影響之後發射的子彈。子彈越大，角色移動越慢",
   },
   {
     type: "ls_set_pierce",
-    message0: "子彈穿透設為 %1",
-    args0: [{ type: "field_number", name: "VALUE", value: 0, min: 0, max: 10, precision: 1 }],
+    message0: "子彈穿透設為 %1 %2",
+    args0: [
+      { type: "field_number", name: "VALUE", value: 0, min: 0, max: 10, precision: 1 },
+      { type: "field_label", name: "HINT", text: "" },
+    ],
     previousStatement: null,
     nextStatement: null,
     colour: STATE,
-    tooltip: "子彈打到敵人後還能穿過幾個",
+    tooltip: "子彈打到敵人後還能穿過幾個。穿透越高，角色移動越慢",
   },
 ];

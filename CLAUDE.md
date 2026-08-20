@@ -55,6 +55,16 @@ tools/
 「積木載不進來」或「拖了沒反應」，極難 debug；在 Node 裡則會直接指出
 是哪張腳本、哪個欄位對不上。
 
+### Blockly 的陷阱（踩過一次，別再踩）
+
+**`blockly/core` 不含任何語言字串**，必須自己 `setLocale()`，而且要在 `inject()`
+之前。少了它，`inject()` 會在建立無障礙標籤時對 `undefined` 呼叫 `.replace`
+而拋例外 —— 這發生在模組初始化階段，rAF 迴圈根本沒開始，**症狀是整頁空白卡死，
+而且看起來完全不像跟語言有關**。設定在 `blocks/defs.ts` 最上方。
+
+無頭測試（`npm run verify`）抓不到這類錯誤，因為它不呼叫 `inject()`。
+瀏覽器端的錯誤會被 Vite 轉發到 dev server 的輸出，卡死時先去那裡看堆疊。
+
 ### Blockly 的三層限制（全部原生支援，不需自製積木 UI）
 
 | 需求 | API |

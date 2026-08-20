@@ -5,6 +5,7 @@
   --danger: #ff4d5a;
   --panel: rgba(13, 19, 30, 0.82);
   --border: rgba(90, 120, 160, 0.25);
+  --editor-w: 400px;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -18,11 +19,31 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
-#game { display: block; }
+/* 積木編輯器固定在左側，戰場佔滿其餘空間。
+   兩者並排而非疊加，是為了讓「改積木 → 看彈幕」這件事不需要切換畫面 ——
+   即時回饋是這個專案的核心賭注。 */
+#editor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--editor-w);
+  border-right: 1px solid var(--border);
+}
+
+#game {
+  position: fixed;
+  left: var(--editor-w);
+  top: 0;
+  display: block;
+}
 
 #hud {
   position: fixed;
-  inset: 0;
+  left: var(--editor-w);
+  right: 0;
+  top: 0;
+  bottom: 0;
   pointer-events: none;
   font-variant-numeric: tabular-nums;
 }
@@ -36,54 +57,30 @@ html, body {
   letter-spacing: 0.02em;
 }
 
-.hud-script {
+/* 腳本效率指標。每拖一塊積木這行就會動，容量壓力因此持續可見 */
+.hud-meta {
   position: absolute;
-  top: 44px;
+  top: 38px;
   left: 16px;
-  min-width: 240px;
-  padding: 12px 14px;
+  padding: 5px 10px;
+  font-size: 12px;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  backdrop-filter: blur(6px);
+  border-radius: 8px;
 }
 
-.hud-script-name { font-size: 15px; font-weight: 600; }
-
-.hud-script-meta {
-  margin: 3px 0 10px;
-  font-size: 11px;
-  color: var(--dim);
-}
-
-.hud-script-body { font-size: 13px; line-height: 1.7; }
-
-.hud-line {
-  padding: 2px 8px 2px 0;
-  border-radius: 4px;
-  color: #b8c8de;
-  /* 不加 transition：熱度已經是連續值，再疊 CSS 補間會讓餘輝糊掉、
-     反而看不出哪一塊是最新執行的 */
-}
-
-/* 積木高亮的底色由 JS 依「餘輝熱度」逐幀給值（見 hud.ts），
-   這裡只負責波前緣的強調。這個黃色是整個教學設計的核心紅利 ——
-   學生會親眼看見它在迴圈裡繞圈：轉、射、轉、射…… */
-.hud-line.head {
-  box-shadow: inset 3px 0 0 #ffc83c, 0 0 12px rgba(255, 200, 60, 0.25);
-}
-
-/* 本輪執行次數。迴圈跑了 24 次這件事，用數字說比用動畫說更牢固 */
-.hud-count {
-  float: right;
-  margin-left: 14px;
-  font-size: 11px;
-  color: #ffc83c;
-  opacity: 0.75;
+/* 超出容量時整行轉紅 —— 學生不必去讀規則就知道不能再加了 */
+.hud-meta.over {
+  color: #ffb3b8;
+  border-color: rgba(255, 77, 90, 0.6);
+  background: rgba(60, 16, 22, 0.85);
 }
 
 .hud-progress {
-  margin-top: 10px;
+  position: absolute;
+  left: 16px;
+  top: 72px;
+  width: 220px;
   height: 3px;
   background: rgba(255, 255, 255, 0.08);
   border-radius: 2px;
@@ -135,4 +132,15 @@ html, body {
   transform: translateX(-50%);
   font-size: 11px;
   color: var(--dim);
+  white-space: nowrap;
+}
+
+/* Blockly 的工具箱標籤預設是深色字，在我們的深色主題上看不見 */
+.blocklyFlyoutLabelText {
+  fill: #8fa3bf !important;
+  font-family: "PingFang TC", "Noto Sans TC", system-ui, sans-serif !important;
+}
+
+.blocklyText {
+  font-family: "PingFang TC", "Noto Sans TC", system-ui, sans-serif !important;
 }

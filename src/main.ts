@@ -1,5 +1,6 @@
 import "./style.css";
-import { STEP } from "./config";
+import { EDITOR_WIDTH, STEP } from "./config";
+import { Editor } from "./editor";
 import { Input } from "./game/input";
 import { World } from "./game/world";
 import { Hud } from "./render/hud";
@@ -8,26 +9,46 @@ import { PRESETS } from "./script/presets";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
 const hudRoot = document.querySelector<HTMLElement>("#hud")!;
+const editorRoot = document.querySelector<HTMLElement>("#editor")!;
 
 const renderer = new Renderer(canvas);
 const hud = new Hud(hudRoot);
 const input = new Input();
 
-let presetIndex = 0;
-const world = new World(PRESETS[presetIndex]);
-hud.setScript(PRESETS[presetIndex]);
+const world = new World(PRESETS[0]);
+
+/** 在積木欄位打字時，用這個假輸入讓角色停住，避免 WASD 同時觸發移動 */
+const IDLE = { axis: () => ({ x: 0, y: 0 }), justPressed: () => false, endFrame: () => {} } as unknown as Input;
+
+/**
+ * 積木一改動就立刻套用到戰場上，不需要按「執行」。
+ *
+ * 即時回饋是這個專案的核心賭注：把積木從迴圈外拖到迴圈內，畫面上的彈幕
+ * 當場變形 —— 「假設 → 驗證」的迴路壓縮到一次拖曳，學生才會願意亂試。
+ */
+const editor = new Editor(editorRoot, () => {
+  const script = editor.read();
+  world.runner.reset(script);
+  hud.setScript(script, editor.used(), editor.used() > editor.capacity());
+});
+
+function loadPreset(i: number): void {
+  editor.load(PRESETS[i]); // 觸發 onChange，腳本會自動套用
+}
+loadPreset(0);
 
 let viewW = 0;
 let viewH = 0;
 let dpr = 1;
 
 function resize(): void {
-  viewW = window.innerWidth;
+  viewW = window.innerWidth - EDITOR_WIDTH;
   viewH = window.innerHeight;
   // 上限 2：retina 下把每幀像素量砍到四分之一，密集彈幕時差別很大
   dpr = Math.min(window.devicePixelRatio || 1, 2);
   renderer.resize(viewW, viewH, dpr);
   world.setViewport(viewW, viewH);
+  editor.resize();
 }
 window.addEventListener("resize", resize);
 resize();
@@ -47,13 +68,13 @@ function frame(now: number): void {
   if (dt > 0.25) dt = 0.25;
   fps += (1 / Math.max(dt, 1e-6) - fps) * 0.1;
 
-  if (input.justPressed("Space")) paused = !paused;
-  if (input.justPressed("KeyR")) world.reset(PRESETS[presetIndex]);
-  for (let i = 0; i < PRESETS.length; i++) {
-    if (input.justPressed(`Digit${i + 1}`)) {
-      presetIndex = i;
-      world.reset(PRESETS[i]);
-      hud.setScript(PRESETS[i]);
+  // 在積木欄位裡打字時，按鍵不該被當成遊戲操作
+  const typing = document.activeElement?.tagName === "INPUT";
+  if (!typing) {
+    if (input.justPressed("Space")) paused = !paused;
+    if (input.justPressed("KeyR")) world.reset(editor.read());
+    for (let i = 0; i < PRESETS.length; i++) {
+      if (input.justPressed(`Digit${i + 1}`)) loadPreset(i);
     }
   }
 
@@ -62,14 +83,15 @@ function frame(now: number): void {
     // 否則 144Hz 螢幕上的攻擊節奏會跟 60Hz 完全不同
     accumulator += dt;
     while (accumulator >= STEP) {
-      world.step(STEP, input);
+      world.step(STEP, typing ? IDLE : input);
       accumulator -= STEP;
     }
   }
 
   renderer.draw(world, viewW, viewH, dpr);
   // 暫停時傳 dt=0 凍結餘輝 —— 空白鍵就成了「定格檢視腳本跑到哪」的工具
-  hud.update(world, paused ? 0 : dt, fps, paused);
+  editor.updateHeat(world.runner.drainTrace(), paused ? 0 : dt);
+  hud.update(world, fps, paused);
   input.endFrame();
 }
 

@@ -7,10 +7,14 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "sim": "rolldown tools/sim.ts --format esm -d node_modules/.cache/sim && node node_modules/.cache/sim/sim.js"
+    "sim": "rolldown tools/sim.ts --format esm -d node_modules/.cache/sim && node node_modules/.cache/sim/sim.js",
+    "verify": "rolldown tools/verify-blocks.ts --format esm --platform node --external blockly/core -d node_modules/.cache/sim && node node_modules/.cache/sim/verify-blocks.js"
   },
   "devDependencies": {
     "typescript": "~6.0.2",
     "vite": "^8.2.0"
+  },
+  "dependencies": {
+    "blockly": "^13.2.1"
   }
 }

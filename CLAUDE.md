@@ -8,11 +8,12 @@ Survivors 式的戰場中，被遊戲規則逼著自己發現迴圈的價值。
 
 ## 目前進度
 
-M0（骨架 + 手寫 JSON 腳本餵 VM，無 Blockly）。里程碑定義見 DECISIONS.md §13。
+M1 進行中：Blockly 已接上，積木可拖、即時套用、積木高亮已接到真積木上。
+尚未做：試射預覽視窗、本輪執行次數顯示。里程碑定義見 DECISIONS.md §13。
 
 ## 技術棧
 
-vanilla TypeScript + Vite ｜ 原生 Canvas 2D ｜ 零相依（M1 起加 Blockly 13）
+vanilla TypeScript + Vite ｜ 原生 Canvas 2D ｜ Blockly 13（zelos renderer）
 
 **刻意不用 React**，理由見 DECISIONS.md §11。不要「順手」引入框架。
 
@@ -33,10 +34,35 @@ src/
     collision.ts     碰撞判定
   render/
     renderer.ts      Canvas 2D 繪製：純粹讀 World 畫出來，不改狀態
-    hud.ts           HUD 疊層
+    hud.ts           戰場側 HUD（積木面板已由 editor.ts 接手）
+  editor.ts          Blockly 編輯器：載入／讀出腳本、積木高亮
+  blocks/
+    definitions.ts   八塊積木的定義（**純資料，不依賴 Blockly**）
+    defs.ts          把定義註冊進 Blockly ＋ 深色主題
+    toolbox.ts       工具箱＝學生能用的積木清單
+    serialize.ts     Blockly 工作區 → AST（只 import type）
+    state.ts         AST → Blockly 序列化狀態（只 import type）
 tools/
   sim.ts             無頭模擬器（不進建置產物）
+  verify-blocks.ts   積木序列化的無頭驗證
 ```
+
+### 為什麼 blocks/ 要拆這麼細
+
+`definitions.ts`（純資料）、`serialize.ts`／`state.ts`（只 import type）都沒有
+執行期的 Blockly 相依 —— 所以 `npm run verify` 能在 Node 裡完成「AST → 積木 →
+讀回 AST」的來回驗證，不必啟動瀏覽器。這條路徑出錯時，瀏覽器裡的症狀是
+「積木載不進來」或「拖了沒反應」，極難 debug；在 Node 裡則會直接指出
+是哪張腳本、哪個欄位對不上。
+
+### Blockly 的三層限制（全部原生支援，不需自製積木 UI）
+
+| 需求 | API |
+|---|---|
+| 只能用特定積木 | 工具箱定義；`updateToolbox()` 動態解鎖 |
+| 容量上限 | `maxBlocks`（＝capacity+1，根積木不佔格）＋ `remainingCapacity()` |
+| 迴圈次數上限 | 數字欄位的 min/max，輸入當下就擋掉 |
+| 稀有積木限量 | `maxInstances`；達上限時 `isDuplicatable()` 自動回傳 false |
 
 ### 三條架構鐵律
 
@@ -70,6 +96,7 @@ tools/
 npm run dev      # http://localhost:5173
 npm run build    # tsc + vite build，產出純靜態檔
 npm run sim      # 無頭模擬，量測各腳本的實際輸出（npm run sim -- 30 可指定秒數）
+npm run verify   # 無頭驗證積木序列化來回轉換
 ```
 
 `tools/sim.ts` 是調平衡的主要工具，也是時間成本模型的迴歸測試：

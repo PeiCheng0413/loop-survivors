@@ -417,3 +417,64 @@ html, body {
   color: var(--dim);
   text-align: center;
 }
+
+/* 王的血條。只在王存在時出現，位置在畫面上緣、與一般 HUD 分開 */
+.hud-boss {
+  position: absolute;
+  left: 50%;
+  top: 16px;
+  width: min(460px, 60%);
+  transform: translateX(-50%);
+  height: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+}
+
+.hud-boss.hidden {
+  display: none;
+}
+
+.hud-boss i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #ff8a3d, #ffcf5c);
+  border-radius: 5px;
+  transition: width 120ms linear;
+}
+
+.hud-boss span {
+  position: absolute;
+  left: 0;
+  bottom: 14px;
+  font-size: 11px;
+  color: #ffb37a;
+  letter-spacing: 0.1em;
+}
+
+/* 階段預告：名稱大、提示清楚。提示直接寫出該怎麼改排列 */
+.hud-banner {
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 40px;
+  text-align: center;
+}
+
+.banner-title {
+  font-size: 30px;
+  letter-spacing: 0.1em;
+}
+
+.banner-hint {
+  max-width: 520px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.7;
+  color: #cfe0f5;
+}
+
+.banner-key {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--dim);
+}

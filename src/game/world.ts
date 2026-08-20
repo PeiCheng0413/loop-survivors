@@ -1,6 +1,7 @@
 import {
   BULLET, CHARGE, CYCLE_COOLDOWN, ENEMY, EXPLODE, GEM, HOMING_TURN_RATE,
-  MAX_BULLETS, MOBILITY, PLAYER, SPAWN, SPLIT, UPGRADE, xpForLevel,
+  ENEMY_KINDS, MAX_BULLETS, MOBILITY, PHASES, PLAYER, SPAWN, SPLIT, UPGRADE, xpForLevel,
+  type Phase,
 } from "../config";
 import { scriptSpec, type Script } from "../script/ast";
 import type { AimTarget } from "../script/ast";
@@ -39,6 +40,12 @@ export class World implements ScriptHost {
   private viewH = 720;
   private spawnAccum = 0;
   private grid = new EnemyGrid();
+  private phaseIndex = -1;
+  /** 剛切換到的階段，等主迴圈取走去做預告與自動暫停 */
+  private phaseAlert: Phase | null = null;
+  private onceSpawned = 0;
+  /** 王的參考，給 HUD 畫血條 */
+  boss: Enemy | null = null;
   /** 由腳本規格換算出的移動速度倍率。火力換機動 */
   private mobility = 1;
 
@@ -65,6 +72,22 @@ export class World implements ScriptHost {
   /** 目前的移動速度倍率（火力換機動 × 升級卡加成），給 HUD 顯示 */
   get mobilityMultiplier(): number {
     return this.mobility * this.stats.moveSpeed;
+  }
+
+  get phase(): Phase {
+    return PHASES[Math.max(0, this.phaseIndex)];
+  }
+
+  /**
+   * 取走「階段剛切換」的通知。主迴圈用它來自動暫停並顯示預告。
+   *
+   * 不自動暫停的話，多數學生會硬打到死，根本不會發現可以改程式 ——
+   * 而那正是整個機制的價值所在（見 docs/DECISIONS.md §9a）。
+   */
+  consumePhaseAlert(): Phase | null {
+    const p = this.phaseAlert;
+    this.phaseAlert = null;
+    return p;
   }
 
   /** 屬性變動後要把冷卻同步進 runner */
@@ -99,6 +122,10 @@ export class World implements ScriptHost {
     this.kills = 0;
     this.dead = false;
     this.spawnAccum = 0;
+    this.phaseIndex = -1;
+    this.phaseAlert = null;
+    this.onceSpawned = 0;
+    this.boss = null;
     this.runner.reset(script);
     if (script) this.mobility = computeMobility(script);
   }
@@ -183,23 +210,64 @@ export class World implements ScriptHost {
   }
 
   private spawn(dt: number): void {
-    const rate = Math.min(SPAWN.cap, SPAWN.base + this.time * SPAWN.growth);
-    this.spawnAccum += rate * dt;
+    // 階段推進：找出目前時間所屬的階段，變了就發預告
+    let index = 0;
+    for (let i = 0; i < PHASES.length; i++) {
+      if (this.time >= PHASES[i].at) index = i;
+    }
+    if (index !== this.phaseIndex) {
+      this.phaseIndex = index;
+      this.onceSpawned = 0;
+      // 第一個階段是開局狀態，不需要預告打斷
+      if (index > 0) this.phaseAlert = PHASES[index];
+    }
+
+    const phase = PHASES[index];
+    const proto = ENEMY_KINDS[phase.kind];
     const radius = Math.hypot(this.viewW, this.viewH) / 2 + SPAWN.margin;
+
+    // 一次性生成（王）
+    if (phase.once) {
+      while (this.onceSpawned < phase.once) {
+        this.onceSpawned++;
+        const e = this.makeEnemy(phase, proto, radius);
+        this.enemies.push(e);
+        if (phase.kind === "boss") this.boss = e;
+      }
+      return;
+    }
+
+    const rate =
+      Math.min(SPAWN.cap, SPAWN.base + this.time * SPAWN.growth) * phase.rateMul;
+    this.spawnAccum += rate * dt;
     while (this.spawnAccum >= 1) {
       this.spawnAccum -= 1;
-      const a = Math.random() * Math.PI * 2;
-      // 血量隨時間成長，讓高單發傷害的 build 到中後期才有舞台
-      const hp = ENEMY.hp * (1 + (this.time / 60) * ENEMY.hpGrowthPerMinute);
-      this.enemies.push({
-        x: this.player.x + Math.cos(a) * radius,
-        y: this.player.y + Math.sin(a) * radius,
-        r: ENEMY.radius,
-        hp,
-        speed: ENEMY.speed * (0.85 + Math.random() * 0.3),
-        hit: 0,
-      });
+      this.enemies.push(this.makeEnemy(phase, proto, radius));
     }
+  }
+
+  private makeEnemy(
+    phase: Phase,
+    proto: (typeof ENEMY_KINDS)[keyof typeof ENEMY_KINDS],
+    radius: number,
+  ): Enemy {
+    const a = Math.random() * Math.PI * 2;
+    // 血量隨時間成長，讓高單發傷害的 build 到中後期才有舞台
+    const hp = proto.hp * (1 + (this.time / 60) * ENEMY.hpGrowthPerMinute);
+    return {
+      x: this.player.x + Math.cos(a) * radius,
+      y: this.player.y + Math.sin(a) * radius,
+      r: proto.radius,
+      hp,
+      maxHp: hp,
+      kind: phase.kind,
+      damage: proto.damage,
+      armor: proto.armor,
+      xp: proto.xp,
+      speed: proto.speed * (0.85 + Math.random() * 0.3),
+      hit: 0,
+      blocked: 0,
+    };
   }
 
   private moveEnemies(dt: number): void {
@@ -231,6 +299,7 @@ export class World implements ScriptHost {
       e.x += (dx * e.speed + sx * ENEMY.separation) * dt;
       e.y += (dy * e.speed + sy * ENEMY.separation) * dt;
       if (e.hit > 0) e.hit -= dt;
+      if (e.blocked > 0) e.blocked -= dt;
     }
   }
 
@@ -366,6 +435,14 @@ export class World implements ScriptHost {
         if (!e || e.hp <= 0) return;
         const rr = (b.r + e.r) ** 2;
         if ((b.x - e.x) ** 2 + (b.y - e.y) ** 2 > rr) return;
+        // 傷害門檻是質變不是減傷：打不動就是完全打不動，
+        // 學生才會意識到要改程式而不是繼續硬打
+        if (b.damage < e.armor) {
+          e.blocked = 0.12;
+          consumed = b.pierce <= 0;
+          if (b.pierce > 0) b.pierce -= 1;
+          return;
+        }
         e.hp -= b.damage;
         e.hit = 0.08;
         if (b.explode) this.explodeAt(b.x, b.y, b.damage);
@@ -378,7 +455,8 @@ export class World implements ScriptHost {
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       if (this.enemies[i].hp <= 0) {
         const e = this.enemies[i];
-        this.gems.push({ x: e.x, y: e.y, value: GEM.value });
+        if (e === this.boss) this.boss = null;
+        this.gems.push({ x: e.x, y: e.y, value: e.xp });
         this.swapRemove(this.enemies, i);
         this.kills++;
       }
@@ -394,7 +472,7 @@ export class World implements ScriptHost {
     for (const e of this.enemies) {
       const rr = (p.r + e.r) ** 2;
       if ((p.x - e.x) ** 2 + (p.y - e.y) ** 2 <= rr) {
-        p.hp -= ENEMY.damage;
+        p.hp -= e.damage;
         p.invuln = PLAYER.invulnerable;
         if (p.hp <= 0) {
           p.hp = 0;

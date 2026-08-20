@@ -1,3 +1,5 @@
+import type { EnemyKind } from "../config";
+
 export interface Player {
   x: number;
   y: number;
@@ -15,9 +17,22 @@ export interface Enemy {
   y: number;
   r: number;
   hp: number;
+  maxHp: number;
   speed: number;
+  kind: EnemyKind;
+  damage: number;
+  /** 傷害門檻：單發低於此值完全無效 */
+  armor: number;
+  xp: number;
   /** 受擊閃白的剩餘時間 —— 打到東西的手感有一半來自這個 */
   hit: number;
+  /**
+   * 傷害被裝甲擋下的閃爍時間。
+   *
+   * 必須跟一般受擊分開表現：學生要能一眼看出「我打中了但沒有用」，
+   * 否則他只會覺得敵人很硬，不會意識到那是門檻機制、更不會想到要改程式。
+   */
+  blocked: number;
 }
 
 export interface Bullet {

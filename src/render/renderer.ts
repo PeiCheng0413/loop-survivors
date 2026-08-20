@@ -10,7 +10,10 @@ const COLOR = {
   playerRing: "#4aa8ff",
   aim: "#4aa8ff",
   enemy: "#ff4d5a",
+  enemyArmor: "#8fa3bf",
+  enemyBoss: "#ff8a3d",
   enemyHit: "#ffffff",
+  blocked: "#5a6a80",
   bullet: "#5ce1ff",
   gem: "#7dffb0",
 };
@@ -103,17 +106,44 @@ export class Renderer {
   private drawEnemies(world: World): void {
     const ctx = this.ctx;
     for (const e of world.enemies) {
+      const base =
+        e.kind === "boss" ? COLOR.enemyBoss : e.kind === "armor" ? COLOR.enemyArmor : COLOR.enemy;
+
       // 受擊閃白：打到東西的手感有一半來自這個 8 分之 1 秒
-      ctx.fillStyle = e.hit > 0 ? COLOR.enemyHit : COLOR.enemy;
+      ctx.fillStyle = e.hit > 0 ? COLOR.enemyHit : base;
       ctx.beginPath();
       ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
       ctx.fill();
+
       ctx.globalAlpha = 0.35;
       ctx.beginPath();
       ctx.arc(e.x, e.y, e.r * 0.55, 0, Math.PI * 2);
       ctx.fillStyle = "#000";
       ctx.fill();
       ctx.globalAlpha = 1;
+
+      // 裝甲兵畫一圈厚外殼，讓「這東西不一樣」在看到的第一眼就成立
+      if (e.armor > 0) {
+        ctx.strokeStyle = e.blocked > 0 ? "#ffffff" : COLOR.blocked;
+        ctx.lineWidth = e.blocked > 0 ? 4 : 2.5;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.r + 3, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // 傷害被擋下時彈出灰色叉：學生要能一眼看出「打中了但沒有用」，
+      // 否則他只會覺得敵人硬，不會意識到那是門檻、更不會想到要改程式
+      if (e.blocked > 0) {
+        ctx.strokeStyle = COLOR.blocked;
+        ctx.lineWidth = 3;
+        const d = e.r * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(e.x - d, e.y - d);
+        ctx.lineTo(e.x + d, e.y + d);
+        ctx.moveTo(e.x + d, e.y - d);
+        ctx.lineTo(e.x - d, e.y + d);
+        ctx.stroke();
+      }
     }
   }
 

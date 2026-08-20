@@ -1,4 +1,5 @@
 import { countExpanded, countFires, type Script } from "../script/ast";
+import type { Phase } from "../config";
 import type { World } from "../game/world";
 
 /**
@@ -12,6 +13,11 @@ export class Hud {
   private hpBar: HTMLElement;
   private xpBar: HTMLElement;
   private xpLabel: HTMLElement;
+  private bossBar: HTMLElement;
+  private bossFill: HTMLElement;
+  private bossLabel: HTMLElement;
+  /** 階段預告。顯示到玩家按下繼續為止 */
+  private telegraph: Phase | null = null;
   private banner: HTMLElement;
 
   constructor(root: HTMLElement) {
@@ -21,6 +27,7 @@ export class Hud {
       <div class="hud-hp"><i></i></div>
       <div class="hud-xp"><i></i><span></span></div>
       <div class="hud-progress"><i></i></div>
+      <div class="hud-boss"><span></span><i></i></div>
       <div class="hud-banner"></div>
       <div class="hud-help">WASD／方向鍵 移動　·　1-5 換角色　·　空白 暫停並試射預覽　·　R 重來</div>
     `;
@@ -31,6 +38,9 @@ export class Hud {
     this.xpBar = root.querySelector(".hud-xp i")!;
     this.xpLabel = root.querySelector(".hud-xp span")!;
     this.banner = root.querySelector(".hud-banner")!;
+    this.bossBar = root.querySelector(".hud-boss")!;
+    this.bossFill = root.querySelector(".hud-boss i")!;
+    this.bossLabel = root.querySelector(".hud-boss span")!;
   }
 
   /**
@@ -61,12 +71,24 @@ export class Hud {
     this.meta.classList.toggle("near", left > 0 && left <= 2);
   }
 
+  /**
+   * 顯示階段預告。內容直接寫出「該怎麼改排列」——
+   * 不要讓學生猜，猜不到的人會硬打到死，那個教學時刻就浪費了。
+   */
+  showTelegraph(phase: Phase): void {
+    this.telegraph = phase;
+  }
+
+  clearTelegraph(): void {
+    this.telegraph = null;
+  }
+
   update(world: World, fps: number, paused: boolean): void {
     const t = world.time;
     this.stats.textContent =
       `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}` +
       `　擊殺 ${world.kills}　敵人 ${world.enemies.length}　子彈 ${world.bullets.length}` +
-      `　週期 ${world.runner.cycles}　${Math.round(fps)} fps`;
+      `　週期 ${world.runner.cycles}　${Math.round(fps)} fps　·　${world.phase.name}`;
 
     this.progressBar.style.width = `${world.runner.progress * 100}%`;
     this.hpBar.style.width = `${(world.player.hp / world.player.maxHp) * 100}%`;
@@ -74,7 +96,29 @@ export class Hud {
     const xpText = `Lv.${world.level}　${world.xp}/${world.xpNeeded}`;
     if (this.xpLabel.textContent !== xpText) this.xpLabel.textContent = xpText;
 
-    const msg = world.dead ? "陣亡　按 R 重來" : paused ? "暫停" : "";
-    if (this.banner.textContent !== msg) this.banner.textContent = msg;
+    // 王的血條只在王存在時出現
+    const boss = world.boss;
+    this.bossBar.classList.toggle("hidden", !boss);
+    if (boss) {
+      this.bossFill.style.width = `${Math.max(0, (boss.hp / boss.maxHp) * 100)}%`;
+      this.bossLabel.textContent = "王";
+    }
+
+    let html = "";
+    if (world.dead) html = "陣亡　按 R 重來";
+    else if (this.telegraph) {
+      html =
+        `<span class="banner-title">${this.telegraph.name}</span>` +
+        `<span class="banner-hint"></span>` +
+        `<span class="banner-key">按空白鍵繼續</span>`;
+    } else if (paused) html = "暫停";
+
+    if (this.banner.innerHTML !== html) {
+      this.banner.innerHTML = html;
+      const hint = this.banner.querySelector(".banner-hint");
+      // 提示用 textContent 填入，階段名稱與提示都來自設定檔而非使用者輸入，
+      // 但保持一致的處理方式，日後若開放老師自訂就不會出事
+      if (hint && this.telegraph) hint.textContent = this.telegraph.hint;
+    }
   }
 }

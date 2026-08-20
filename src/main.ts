@@ -125,6 +125,14 @@ function frame(now: number): void {
   if (dt > 0.25) dt = 0.25;
   fps += (1 / Math.max(dt, 1e-6) - fps) * 0.1;
 
+  // 階段切換強制暫停並預告 —— 這是「依敵人改排列」機制的觸發點，
+  // 不強制的話多數學生會硬打到死，根本不會發現可以改程式
+  const alert = world.consumePhaseAlert();
+  if (alert) {
+    setPaused(true);
+    hud.showTelegraph(alert);
+  }
+
   // 升等時強制暫停並跳卡片。多次升等會排隊，一張一張選
   if (world.pendingLevelUps > 0 && !levelUp.isOpen) {
     setPaused(true);
@@ -140,7 +148,10 @@ function frame(now: number): void {
         if (input.justPressed(`Digit${i + 1}`)) levelUp.pick(i);
       }
     } else {
-      if (input.justPressed("Space")) setPaused(!paused);
+      if (input.justPressed("Space")) {
+        hud.clearTelegraph();
+        setPaused(!paused);
+      }
       if (input.justPressed("KeyR")) world.reset(editor.read());
       for (let i = 0; i < PRESETS.length; i++) {
         if (input.justPressed(`Digit${i + 1}`)) loadPreset(i);

@@ -138,7 +138,8 @@ export class Editor {
     }
 
     const fade = dt / HEAT_DECAY;
-    for (const [id, prev] of [...this.heat]) {
+    // 邊走訪邊 delete 目前這個 key 對 Map 是安全的，不需要先複製一份
+    for (const [id, prev] of this.heat) {
       let h = prev;
       if (h > 0 && fade > 0) {
         h = Math.max(0, h - fade);

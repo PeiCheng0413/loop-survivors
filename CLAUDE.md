@@ -58,6 +58,16 @@ tools/
 「積木載不進來」或「拖了沒反應」，極難 debug；在 Node 裡則會直接指出
 是哪張腳本、哪個欄位對不上。
 
+### main.ts 的宣告順序（踩過兩次）
+
+`main.ts` 是 top-level 直線執行，而 `let` 有 TDZ。只要有函式在變數宣告之前
+被呼叫且讀到它，就會拋 ReferenceError —— 而它拋在模組初始化階段，
+**rAF 迴圈根本不會開始，症狀是整頁空白卡死**，完全看不出跟宣告順序有關。
+
+所有可變狀態集中宣告在 `main.ts` 檔案上方那一區，新增狀態一律加在那裡，
+不要就近宣告。`npm run lint` 的 `no-use-before-define` 會擋下這類錯誤，
+且已納入 `npm run build`。
+
 ### Blockly 的陷阱（踩過一次，別再踩）
 
 **`blockly/core` 不含任何語言字串**，必須自己 `setLocale()`，而且要在 `inject()`
@@ -110,6 +120,7 @@ npm run dev      # http://localhost:5173
 npm run build    # tsc + vite build，產出純靜態檔
 npm run sim      # 無頭模擬，量測各腳本的實際輸出（npm run sim -- 30 可指定秒數）
 npm run verify   # 無頭驗證積木序列化來回轉換
+npm run lint     # oxlint，主要防的是 no-use-before-define（見上方陷阱）
 ```
 
 `tools/sim.ts` 是調平衡的主要工具，也是時間成本模型的迴歸測試：

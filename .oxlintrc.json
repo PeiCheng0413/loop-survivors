@@ -1,0 +1,9 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "rules": {
+    "no-use-before-define": [
+      "error",
+      { "functions": false, "variables": true, "classes": true }
+    ]
+  }
+}

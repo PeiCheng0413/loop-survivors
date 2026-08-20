@@ -17,6 +17,22 @@ const previewCanvas = document.querySelector<HTMLCanvasElement>("#preview-canvas
 const previewPanel = document.querySelector<HTMLElement>("#preview")!;
 const splitterRoot = document.querySelector<HTMLElement>("#splitter")!;
 
+/**
+ * 所有可變狀態集中宣告在這裡，且必須在任何函式被呼叫之前。
+ *
+ * 這個檔案是 top-level 直線執行，而 `let` 有 TDZ —— 只要有函式在宣告之前
+ * 被呼叫且讀到這些變數，就會拋 ReferenceError。而它拋在模組初始化階段，
+ * rAF 迴圈根本不會開始，症狀是整頁空白卡死。這個坑在本專案踩過兩次，
+ * 新增狀態一律加在這一區，不要就近宣告。
+ */
+let viewW = 0;
+let viewH = 0;
+let dpr = 1;
+let paused = false;
+let last = performance.now();
+let accumulator = 0;
+let fps = 60;
+
 const renderer = new Renderer(canvas);
 const hud = new Hud(hudRoot);
 const input = new Input();
@@ -48,10 +64,6 @@ loadPreset(0);
 // 分隔線負責決定編輯器寬度；每次變動都要讓畫布與 Blockly 一起重新量測
 const splitter = new Splitter(splitterRoot, editorRoot, () => resize());
 
-let viewW = 0;
-let viewH = 0;
-let dpr = 1;
-
 function resize(): void {
   viewW = window.innerWidth - splitter.width;
   viewH = window.innerHeight;
@@ -67,8 +79,6 @@ function resize(): void {
 }
 window.addEventListener("resize", resize);
 resize();
-
-let paused = false;
 
 /**
  * 試射預覽只在暫停時出現（docs/DECISIONS.md §8）。
@@ -88,10 +98,6 @@ function setPaused(next: boolean): void {
   // 預覽收合會改變積木區高度，Blockly 要重新量測
   if (splitter.width > 0) editor.resize();
 }
-
-let last = performance.now();
-let accumulator = 0;
-let fps = 60;
 
 function frame(now: number): void {
   requestAnimationFrame(frame);

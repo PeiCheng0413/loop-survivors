@@ -107,8 +107,8 @@ export const ENEMY = {
 /** 生成節奏：每秒生成數 = base + time * growth，並受 cap 限制 */
 export const SPAWN = {
   base: 3,
-  growth: 0.42,
-  cap: 34,
+  growth: 0.34,
+  cap: 30,
   /** 生成距離 = 螢幕對角線一半 + 這個緩衝，確保在畫面外出現 */
   margin: 80,
 };

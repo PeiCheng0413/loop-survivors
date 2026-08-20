@@ -72,6 +72,7 @@ function autoPilot(world: World): Input {
 
 interface Result {
   name: string;
+  startBlocks: number;
   blocks: number;
   capacity: number;
   expanded: number;
@@ -89,7 +90,9 @@ interface Result {
   msPerStep: number;
 }
 
-function simulate(script: Script, seconds: number): Result {
+function simulate(source: Script, seconds: number): Result {
+  // 深拷貝：模擬會改動腳本（加積木），不能污染 PRESETS 讓後面的項目受影響
+  const script: Script = JSON.parse(JSON.stringify(source));
   const world = new World(script);
   world.setViewport(1280, 720);
 
@@ -116,17 +119,16 @@ function simulate(script: Script, seconds: number): Result {
       break;
     }
     world.step(STEP, input);
-    // 模擬玩家會選卡：一律挑第一張，才不會卡在待升級狀態影響後續數據
     while (world.pendingLevelUps > 0) {
       world.pendingLevelUps--;
-      // 與實際卡片一致的加算幅度，否則量到的是模擬器自己的通貨膨脹
-      world.stats.damage += UPGRADE.damage;
+      levelUp(world, script);
     }
   }
   const elapsed = performance.now() - t0;
 
   return {
     name: script.name,
+    startBlocks: countBlocks(source.body),
     blocks: countBlocks(script.body),
     capacity: script.capacity,
     expanded: countExpanded(script.body),
@@ -163,6 +165,45 @@ function predictCycleMs(nodes: Node[]): number {
   return seconds * 1000;
 }
 
+let extraId = 0;
+
+/**
+ * 模擬玩家升級。
+ *
+ * 早期版本一律加傷害，結果是嚴重低估所有 build —— 真實玩家會拿容量卡、
+ * 會把新積木插進迴圈裡，腳本本身一直在長大。只加數值等於量「起手腳本
+ * 硬撐五分鐘」，那不是任何人真正的玩法。
+ *
+ * 這裡輪流套用四種成長，其中包含**把一塊發射塞進最外層迴圈** ——
+ * 這是玩家拿到容量後最自然的動作，也是讓迴圈價值真正展開的地方。
+ */
+function levelUp(world: World, script: Script): void {
+  switch (world.level % 4) {
+    case 0:
+      world.stats.damage += UPGRADE.damage;
+      break;
+    case 1:
+      world.stats.haste += 1;
+      world.refreshCooldown();
+      break;
+    case 2:
+      world.stats.moveSpeed += UPGRADE.moveSpeed;
+      break;
+    default: {
+      // 容量夠就把腳本加長，不夠就先買容量
+      if (countBlocks(script.body) < script.capacity) {
+        const loop = script.body.find((n) => n.kind === "repeat");
+        const fire: Node = { kind: "fire", id: `sim${++extraId}` };
+        if (loop && loop.kind === "repeat") loop.body.push(fire);
+        else script.body.push(fire);
+        world.setScript(script);
+      } else {
+        script.capacity += UPGRADE.capacity;
+      }
+    }
+  }
+}
+
 function pad(s: string | number, n: number): string {
   const str = String(s);
   // 中文字在等寬終端機佔兩格，要另外算才對得齊
@@ -173,7 +214,7 @@ function pad(s: string | number, n: number): string {
 const seconds = Number(process.argv[2]) || 10;
 console.log(`\n積木成本 ${BLOCK_COST * 1000}ms　·　週期冷卻 ${CYCLE_COOLDOWN * 1000}ms　·　每張腳本模擬 ${seconds} 秒\n`);
 console.log(
-  pad("腳本", 12) + pad("容量", 10) + pad("每輪發數", 10) + pad("展開格數", 10) +
+  pad("腳本", 12) + pad("容量", 12) + pad("每輪發數", 10) + pad("展開格數", 10) +
   pad("週期(預測/實測)", 20) + pad("每秒發數", 9) + pad("每發傷害", 10) +
   pad("每秒傷害", 10) + pad("移速", 7) + pad("擊殺", 6) + pad("等級", 6) + pad("存活", 8),
 );
@@ -183,7 +224,7 @@ for (const script of PRESETS) {
   const r = simulate(script, seconds);
   console.log(
     pad(r.name, 12) +
-    pad(`${r.blocks}/${r.capacity}`, 10) +
+    pad(`${r.startBlocks}→${r.blocks}/${r.capacity}`, 12) +
     pad(r.firesPerCycle, 10) +
     pad(r.expanded, 10) +
     pad(`${r.predictedCycleMs.toFixed(0)} / ${r.actualCycleMs.toFixed(0)}ms`, 20) +

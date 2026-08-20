@@ -46,6 +46,14 @@ export const PRESETS: Script[] = [
     body: [aim("nearest"), setSpeed(560), setSize(6), setPierce(1), fire()],
   },
   {
+    // 與狙擊手的對照組：同樣瞄準、同樣規格，只是把發射包進迴圈。
+    // 教學上真正該證明的不是「散射 vs 瞄準」，而是**同一個 build 加上迴圈
+    // 會不會變強** —— 這兩張卡並排比較，答案就一目瞭然。
+    name: "連射狙擊",
+    capacity: 12,
+    body: [aim("nearest"), setSpeed(560), setSize(6), setPierce(1), repeat(4, [fire(), wait(0.08)])],
+  },
+  {
     // 示範迴圈變數與累加器：旋轉量隨圈數遞增畫出螺旋，
     // 速度逐發累加讓子彈分層飛出，兩者都是「迴圈裡的值會一路長上去」
     name: "螺旋手",

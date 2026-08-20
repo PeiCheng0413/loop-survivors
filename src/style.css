@@ -28,7 +28,63 @@ html, body {
   top: 0;
   bottom: 0;
   width: var(--editor-w);
-  border-right: 1px solid var(--border);
+}
+
+/* 可拖曳的分隔線。拖曳＝調寬度，單擊＝收合／展開，雙擊＝還原預設。
+   把三種操作疊在同一個元素上，是為了不在畫面上多放兩顆按鈕 ——
+   這是給學生看的畫面，控制項越少越好。 */
+#splitter {
+  position: fixed;
+  left: var(--editor-w);
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  margin-left: -4px;
+  z-index: 20;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+#splitter::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+  transition: background-color 120ms;
+}
+
+#splitter:hover::before,
+#splitter.dragging::before {
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(92, 225, 255, 0.5);
+}
+
+.splitter-btn {
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  width: 20px;
+  height: 44px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-size: 14px;
+  color: var(--dim);
+  background: #141c2c;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  cursor: pointer;
+  /* 讓點擊事件交給父層的 splitter 統一處理，才能分辨拖曳與點擊 */
+  pointer-events: none;
+}
+
+#splitter:hover .splitter-btn {
+  color: var(--fg);
+  border-color: var(--accent);
 }
 
 #game {

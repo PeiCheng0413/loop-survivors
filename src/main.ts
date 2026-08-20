@@ -1,15 +1,17 @@
 import "./style.css";
-import { EDITOR_WIDTH, STEP } from "./config";
+import { STEP } from "./config";
 import { Editor } from "./editor";
 import { Input } from "./game/input";
 import { World } from "./game/world";
 import { Hud } from "./render/hud";
 import { Renderer } from "./render/renderer";
+import { Splitter } from "./splitter";
 import { PRESETS } from "./script/presets";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
 const hudRoot = document.querySelector<HTMLElement>("#hud")!;
 const editorRoot = document.querySelector<HTMLElement>("#editor")!;
+const splitterRoot = document.querySelector<HTMLElement>("#splitter")!;
 
 const renderer = new Renderer(canvas);
 const hud = new Hud(hudRoot);
@@ -37,18 +39,22 @@ function loadPreset(i: number): void {
 }
 loadPreset(0);
 
+// 分隔線負責決定編輯器寬度；每次變動都要讓畫布與 Blockly 一起重新量測
+const splitter = new Splitter(splitterRoot, editorRoot, () => resize());
+
 let viewW = 0;
 let viewH = 0;
 let dpr = 1;
 
 function resize(): void {
-  viewW = window.innerWidth - EDITOR_WIDTH;
+  viewW = window.innerWidth - splitter.width;
   viewH = window.innerHeight;
   // 上限 2：retina 下把每幀像素量砍到四分之一，密集彈幕時差別很大
   dpr = Math.min(window.devicePixelRatio || 1, 2);
   renderer.resize(viewW, viewH, dpr);
   world.setViewport(viewW, viewH);
-  editor.resize();
+  // 收合時 Blockly 容器是 display:none，量測會得到 0，跳過即可
+  if (splitter.width > 0) editor.resize();
 }
 window.addEventListener("resize", resize);
 resize();

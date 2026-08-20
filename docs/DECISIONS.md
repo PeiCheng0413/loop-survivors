@@ -249,8 +249,21 @@ roguelike 的學習發生在重跑，每次從零拖積木的摩擦力會殺掉�
 ## 未解風險
 
 1. **平衡是長尾**。M0～M3 約兩三週到「能玩」，但「好玩」要靠反覆試玩調整，無法給時程保證。
-2. **Blockly 三處 API 未驗證**：動態工具箱、禁止特定積木複製、自訂容量計數。
-   M1 一開始就先探這三個 API；若不支援，限量規則要改寫法。
+2. ~~**Blockly 三處 API 未驗證**~~ → **已驗證通過（2026-08-20，Blockly 13.2.1）**
+
+   | 需求 | API |
+   |---|---|
+   | 只能用特定積木 | 工具箱定義；`workspace.updateToolbox()` 動態解鎖 |
+   | 容量上限 | `maxBlocks` ＋ `remainingCapacity()` |
+   | 稀有積木限量 | `maxInstances: { type: n }` ＋ `remainingCapacityOfType()` |
+   | 稀有積木不可複製 | **自動**：達到 maxInstances 時 `isDuplicatable()` 回傳 false |
+
+   三層限制規則全部有原生支援，不需要自製積木 UI。且 Blockly 數積木的方式
+   （每塊 1 個、C 形本身也算 1 個）與我們的容量規則完全一致，不必自寫計數器。
+
+   **待定細節**：`remainingCapacity()` 實作為 `maxBlocks - getAllBlocks(false).length`，
+   會把學生拖出來放旁邊、未接上腳本的散塊也算進容量。傾向接受此預設
+   （逼學生保持工作區整潔，也更貼近「記憶體」的隱喻），M1 實際操作後再定。
 3. **4ms 是猜的**，必須實測調整。
 4. **容量計算的巢狀規則**已定（C 形本身 1 格、內部各 1 格），但學生取捨手感待驗證。
 

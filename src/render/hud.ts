@@ -26,7 +26,10 @@ import type { World } from "../game/world";
  * 這個值只影響顯示，完全不動遊戲速度 —— 可讀性與遊戲性不必互相犧牲。
  * 手感定案後可以把切換鍵拿掉，只留選定的常數。
  */
-const HEAT_DECAY_STEPS = [0.12, 0.2, 0.3, 0.45];
+const HEAT_DECAY_STEPS = [0, 0.12, 0.2, 0.3, 0.45];
+
+/** 0 代表關閉餘輝：熱度當幀清零，只畫這一幀跑過的積木，不留殘影 */
+const HEAT_OFF = 0;
 
 export class Hud {
   private stats: HTMLElement;
@@ -48,7 +51,7 @@ export class Hud {
   private shown = new Map<string, number>();
   private lastCycle = -1;
   private headId: string | null = null;
-  private decayIndex = 1;
+  private decayIndex = 0;
 
   constructor(root: HTMLElement) {
     root.innerHTML = `
@@ -81,9 +84,10 @@ export class Hud {
   }
 
   private renderHelp(): void {
+    const d = HEAT_DECAY_STEPS[this.decayIndex];
     this.help.textContent =
       `WASD／方向鍵 移動　·　1-4 切換腳本　·　空白 暫停　·　R 重來　·　` +
-      `H 餘輝 ${HEAT_DECAY_STEPS[this.decayIndex].toFixed(2)}s`;
+      `H 餘輝 ${d === HEAT_OFF ? "關" : `${d.toFixed(2)}s`}`;
   }
 
   setScript(script: Script): void {
@@ -159,6 +163,8 @@ export class Hud {
     }
     if (trace.length > 0) this.headId = trace[trace.length - 1];
 
+    // 衰減設為 0 時 fade 是 Infinity，熱度當幀歸零 —— 就是「關閉餘輝」。
+    // 暫停時 dt=0，0/0 得到 NaN，下方的 fade > 0 判斷會擋掉，餘輝照樣凍結。
     const fade = dt / HEAT_DECAY_STEPS[this.decayIndex];
     for (const [id, el] of this.lineEls) {
       let h = this.heat.get(id) ?? 0;

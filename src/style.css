@@ -32,6 +32,23 @@ html, body {
   flex-direction: column;
 }
 
+/* 圖例列。×N 這種標記不解釋的話沒人看得懂 —— 連老師都問了，
+   學生更不可能猜到。放在積木區正上方，不需要滑鼠停留就看得到。 */
+#editor-head {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--dim);
+  background: #0d1320;
+  border-bottom: 1px solid var(--border);
+}
+
+#editor-head b {
+  color: #ffc83c;
+  font-weight: 600;
+}
+
 /* min-height: 0 是必要的 —— flex 子項預設不會縮到內容以下，
    少了它 Blockly 會把預覽區擠出畫面外 */
 #blockly {

@@ -228,12 +228,17 @@ export class Editor {
       if (!badge || !badge.isConnected) {
         badge = document.createElementNS("http://www.w3.org/2000/svg", "text");
         badge.setAttribute("class", "ls-count");
+        const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+        title.textContent = "這一輪攻擊裡，這塊積木執行了幾次";
+        badge.appendChild(title);
         this.badges.set(id, badge);
       }
       root.appendChild(badge); // 重新掛回最上層，避免被積木重繪蓋住
       badge.setAttribute("x", String(block!.width + 10));
       badge.setAttribute("y", "22");
-      badge.textContent = `×${n}`;
+      // 用 firstChild 更新文字，避免蓋掉裡面的 <title> 說明
+      const label = badge.firstChild?.nextSibling ?? badge.appendChild(document.createTextNode(""));
+      label.textContent = `×${n}`;
     }
   }
 }

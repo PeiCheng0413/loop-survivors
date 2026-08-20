@@ -97,9 +97,11 @@ export function* exec(
         const outerIndex = st.loopIndex;
         for (let i = 0; i < times; i++) {
           st.loopIndex = i;
+          // 回到迴圈頭：讓高亮在跳回時閃一下，看得出「又繞了一圈」。
+          // 第一圈不標 —— 進入迴圈時已經標過一次，再標就會變成 8 圈顯示 ×9，
+          // 而那個數字正是要教學生「迴圈跑了幾次」的，錯一次就全毀。
+          if (i > 0) mark(st, node.id);
           yield* exec(node.body, st, host);
-          // 回到迴圈頭：讓高亮在跳回時閃一下，視覺上看得出「又繞了一圈」
-          mark(st, node.id);
         }
         st.loopIndex = outerIndex;
         break;

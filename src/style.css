@@ -1,0 +1,129 @@
+:root {
+  --fg: #d7e3f4;
+  --dim: #7d8ca4;
+  --accent: #5ce1ff;
+  --danger: #ff4d5a;
+  --panel: rgba(13, 19, 30, 0.82);
+  --border: rgba(90, 120, 160, 0.25);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: #0b0f18;
+  color: var(--fg);
+  font-family: "PingFang TC", "Noto Sans TC", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#game { display: block; }
+
+#hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-stats {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  font-size: 13px;
+  color: var(--dim);
+  letter-spacing: 0.02em;
+}
+
+.hud-script {
+  position: absolute;
+  top: 44px;
+  left: 16px;
+  min-width: 240px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  backdrop-filter: blur(6px);
+}
+
+.hud-script-name { font-size: 15px; font-weight: 600; }
+
+.hud-script-meta {
+  margin: 3px 0 10px;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.hud-script-body { font-size: 13px; line-height: 1.7; }
+
+.hud-line {
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: #b8c8de;
+  transition: background-color 60ms linear;
+}
+
+/* 積木高亮。這個黃框是整個教學設計的核心紅利 ——
+   學生會親眼看見它在迴圈裡繞圈：轉、射、轉、射…… */
+.hud-line.active {
+  background: rgba(255, 200, 60, 0.22);
+  color: #ffe9a8;
+  box-shadow: inset 2px 0 0 #ffc83c;
+}
+
+.hud-progress {
+  margin-top: 10px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.hud-progress i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+}
+
+.hud-hp {
+  position: absolute;
+  left: 50%;
+  bottom: 46px;
+  width: 280px;
+  height: 8px;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.hud-hp i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, var(--danger), #ff8a5a);
+  transition: width 120ms linear;
+}
+
+.hud-banner {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.8);
+}
+
+.hud-help {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: var(--dim);
+}

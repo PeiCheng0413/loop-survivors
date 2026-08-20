@@ -1,0 +1,76 @@
+/**
+ * 積木腳本的抽象語法樹。
+ *
+ * 這個格式就是 M1 之後 Blockly 要序列化成的目標 —— 先在 M0 用手寫 JSON 驗證
+ * 遊戲手感，確定好玩了才接編輯器。若順序反過來，萬一手感不好，Blockly 的
+ * 整合工作全部白做。
+ */
+
+/** 「方向設為」的目標。這塊積木把「瞄準」從手部動作轉譯成邏輯決策 */
+export type AimTarget = "nearest" | "moveDir" | "random";
+
+export type Node =
+  /** 重複執行 (times) 次 —— C 形積木，可巢狀，本專案的主角 */
+  | { kind: "repeat"; id: string; times: number; body: Node[] }
+  /** 等待 (seconds) 秒 —— 顯式的大額時間成本，學生用它創造節奏 */
+  | { kind: "wait"; id: string; seconds: number }
+  /** 發射子彈 */
+  | { kind: "fire"; id: string }
+  /** 方向旋轉 (degrees) 度 —— 相對轉向 */
+  | { kind: "turn"; id: string; degrees: number }
+  /** 方向設為 [目標] —— 絕對轉向 */
+  | { kind: "aim"; id: string; target: AimTarget }
+  /** 子彈速度設為 (value) */
+  | { kind: "setSpeed"; id: string; value: number }
+  /** 子彈大小設為 (value) */
+  | { kind: "setSize"; id: string; value: number }
+  /** 子彈穿透設為 (value) */
+  | { kind: "setPierce"; id: string; value: number };
+
+export interface Script {
+  name: string;
+  /** 容量上限（格數）。每塊積木佔 1 格，C 形積木本身也算 1 格 */
+  capacity: number;
+  body: Node[];
+}
+
+/**
+ * 計算腳本佔用的格數。
+ *
+ * 這就是「容量上限」規則的實作 —— 迴圈之所以划算，是因為
+ * 「重複 8 次 { 旋轉; 發射 }」只佔 3 格，展開寫要 16 格。
+ * 學生不是被規定要用迴圈，是被逼到不得不發現迴圈划算。
+ */
+export function countBlocks(nodes: Node[]): number {
+  let n = 0;
+  for (const node of nodes) {
+    n += 1;
+    if (node.kind === "repeat") n += countBlocks(node.body);
+  }
+  return n;
+}
+
+/** 展開寫需要幾格 —— 拿來跟實際格數對比，就是「迴圈省了多少」的量化 */
+export function countExpanded(nodes: Node[]): number {
+  let n = 0;
+  for (const node of nodes) {
+    if (node.kind === "repeat") n += countExpanded(node.body) * node.times;
+    else n += 1;
+  }
+  return n;
+}
+
+/**
+ * 一輪腳本會發射幾發子彈。
+ *
+ * 跟 countBlocks() 一起顯示，就是「你用 3 格積木產生了 8 發子彈」這個
+ * 效率指標 —— 迴圈的價值第一次被量化成學生看得懂的數字。
+ */
+export function countFires(nodes: Node[]): number {
+  let n = 0;
+  for (const node of nodes) {
+    if (node.kind === "fire") n += 1;
+    else if (node.kind === "repeat") n += countFires(node.body) * node.times;
+  }
+  return n;
+}

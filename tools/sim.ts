@@ -11,18 +11,64 @@
  * 同時它也是時間成本模型的迴歸測試：若「預測週期」與「實測週期」開始
  * 對不上，代表 VM 的計時邏輯被改壞了（見 docs/DECISIONS.md §3）。
  */
-import { BLOCK_COST, CYCLE_COOLDOWN, STEP } from "../src/config";
+import { BLOCK_COST, CYCLE_COOLDOWN, STEP, UPGRADE } from "../src/config";
 import { countBlocks, countExpanded, countFires, type Node, type Script } from "../src/script/ast";
 import { World } from "../src/game/world";
 import type { Input } from "../src/game/input";
 import { PRESETS } from "../src/script/presets";
 
-/** 站著不動的假輸入。玩家走位會干擾量測，這裡只看腳本本身的輸出 */
-const idle = {
-  axis: () => ({ x: 0, y: 0 }),
-  justPressed: () => false,
-  endFrame: () => {},
-} as unknown as Input;
+/**
+ * 粗略的自動走位。
+ *
+ * 站著不動量不到成長曲線 —— 玩家不動就撿不到經驗球，永遠不會升級，
+ * 而升級節奏正是最需要打磨的東西。這個 AI 做兩件事：遠離最近的敵人、
+ * 靠近最近的經驗球，兩者加權相加。
+ *
+ * 它當然打不過真人，但**一致**：調整任何數值後重跑，差異來自數值本身
+ * 而不是操作好壞。量測要的是可比較，不是最佳解。
+ */
+function autoPilot(world: World): Input {
+  return {
+    axis: () => {
+      const p = world.player;
+      let x = 0;
+      let y = 0;
+
+      let nearest = Infinity;
+      for (const e of world.enemies) {
+        const d = Math.hypot(e.x - p.x, e.y - p.y);
+        if (d < nearest) nearest = d;
+        if (d < 140 && d > 0) {
+          // 越近的敵人推力越強
+          const w = (1 - d / 140) ** 2;
+          x -= ((e.x - p.x) / d) * w;
+          y -= ((e.y - p.y) / d) * w;
+        }
+      }
+
+      let bestGem = Infinity;
+      let gx = 0;
+      let gy = 0;
+      for (const g of world.gems) {
+        const d = Math.hypot(g.x - p.x, g.y - p.y);
+        if (d < bestGem) {
+          bestGem = d;
+          gx = (g.x - p.x) / (d || 1);
+          gy = (g.y - p.y) / (d || 1);
+        }
+      }
+      // 沒有立即危險時才去撿球
+      const greed = nearest > 90 ? 0.9 : 0.25;
+      x += gx * greed;
+      y += gy * greed;
+
+      const len = Math.hypot(x, y);
+      return len > 0 ? { x: x / len, y: y / len } : { x: 0, y: 0 };
+    },
+    justPressed: () => false,
+    endFrame: () => {},
+  } as unknown as Input;
+}
 
 interface Result {
   name: string;
@@ -36,6 +82,8 @@ interface Result {
   mobility: number;
   kills: number;
   hp: number;
+  level: number;
+  survived: number;
   predictedCycleMs: number;
   actualCycleMs: number;
   msPerStep: number;
@@ -58,9 +106,23 @@ function simulate(script: Script, seconds: number): Result {
     }
   };
 
+  const input = autoPilot(world);
   const steps = Math.round(seconds / STEP);
   const t0 = performance.now();
-  for (let i = 0; i < steps; i++) world.step(STEP, idle);
+  let survived = seconds;
+  for (let i = 0; i < steps; i++) {
+    if (world.dead) {
+      survived = world.time;
+      break;
+    }
+    world.step(STEP, input);
+    // 模擬玩家會選卡：一律挑第一張，才不會卡在待升級狀態影響後續數據
+    while (world.pendingLevelUps > 0) {
+      world.pendingLevelUps--;
+      // 與實際卡片一致的加算幅度，否則量到的是模擬器自己的通貨膨脹
+      world.stats.damage += UPGRADE.damage;
+    }
+  }
   const elapsed = performance.now() - t0;
 
   return {
@@ -75,8 +137,10 @@ function simulate(script: Script, seconds: number): Result {
     mobility: world.mobilityMultiplier,
     kills: world.kills,
     hp: world.player.hp,
+    level: world.level,
+    survived,
     predictedCycleMs: predictCycleMs(script.body),
-    actualCycleMs: (seconds / Math.max(1, world.runner.cycles)) * 1000,
+    actualCycleMs: (survived / Math.max(1, world.runner.cycles)) * 1000,
     msPerStep: elapsed / steps,
   };
 }
@@ -111,7 +175,7 @@ console.log(`\n積木成本 ${BLOCK_COST * 1000}ms　·　週期冷卻 ${CYCLE_C
 console.log(
   pad("腳本", 12) + pad("容量", 10) + pad("每輪發數", 10) + pad("展開格數", 10) +
   pad("週期(預測/實測)", 20) + pad("每秒發數", 9) + pad("每發傷害", 10) +
-  pad("每秒傷害", 10) + pad("移速", 7) + pad("擊殺", 6),
+  pad("每秒傷害", 10) + pad("移速", 7) + pad("擊殺", 6) + pad("等級", 6) + pad("存活", 8),
 );
 console.log("─".repeat(104));
 
@@ -123,11 +187,13 @@ for (const script of PRESETS) {
     pad(r.firesPerCycle, 10) +
     pad(r.expanded, 10) +
     pad(`${r.predictedCycleMs.toFixed(0)} / ${r.actualCycleMs.toFixed(0)}ms`, 20) +
-    pad((r.fired / seconds).toFixed(1), 9) +
+    pad((r.fired / r.survived).toFixed(1), 9) +
     pad((r.damage / Math.max(1, r.fired)).toFixed(1), 10) +
-    pad((r.damage / seconds).toFixed(1), 10) +
+    pad((r.damage / r.survived).toFixed(1), 10) +
     pad(`${Math.round(r.mobility * 100)}%`, 7) +
-    pad(r.kills, 6),
+    pad(r.kills, 6) +
+    pad(r.level, 6) +
+    pad(r.survived >= seconds ? "撐完" : `${r.survived.toFixed(0)}s`, 8),
   );
 }
 

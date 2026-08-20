@@ -19,6 +19,8 @@ export interface BulletOpts {
   pierce: number;
   homing: boolean;
   explode: boolean;
+  split: boolean;
+  life: number;
 }
 
 /** 腳本的執行狀態。發射參數是狀態積木的作用對象 */
@@ -30,6 +32,13 @@ export interface VMState {
   pierce: number;
   homing: boolean;
   explode: boolean;
+  split: boolean;
+  life: number;
+  /**
+   * 目前所在迴圈的圈數（從 0 起算，取最內層）。
+   * 「方向旋轉 N 度 × 迴圈次數」讀的就是它。
+   */
+  loopIndex: number;
   /** 目前執行到哪一塊積木 */
   currentId: string | null;
   /**
@@ -57,6 +66,8 @@ function freshOpts(): BulletOpts {
     pierce: BULLET.pierce,
     homing: false,
     explode: false,
+    split: false,
+    life: BULLET.life,
   };
 }
 
@@ -82,11 +93,15 @@ export function* exec(
         // 公平，容量上限才是唯一的差別，教學訊號才乾淨。
         yield BLOCK_COST;
         const times = Math.max(0, Math.min(Math.floor(node.times), REPEAT_LIMIT));
+        // 巢狀時內層會覆寫圈數，跑完要還給外層
+        const outerIndex = st.loopIndex;
         for (let i = 0; i < times; i++) {
+          st.loopIndex = i;
           yield* exec(node.body, st, host);
           // 回到迴圈頭：讓高亮在跳回時閃一下，視覺上看得出「又繞了一圈」
           mark(st, node.id);
         }
+        st.loopIndex = outerIndex;
         break;
       }
 
@@ -101,6 +116,8 @@ export function* exec(
           pierce: st.pierce,
           homing: st.homing,
           explode: st.explode,
+          split: st.split,
+          life: st.life,
         });
         yield BLOCK_COST;
         break;
@@ -127,6 +144,31 @@ export function* exec(
 
       case "setPierce":
         st.pierce = node.value;
+        yield BLOCK_COST;
+        break;
+
+      case "turnByIndex":
+        st.dir += node.degrees * st.loopIndex;
+        yield BLOCK_COST;
+        break;
+
+      case "addSpeed":
+        st.speed += node.value;
+        yield BLOCK_COST;
+        break;
+
+      case "addSize":
+        st.size = Math.max(1, st.size + node.value);
+        yield BLOCK_COST;
+        break;
+
+      case "setLife":
+        st.life = node.value;
+        yield BLOCK_COST;
+        break;
+
+      case "setSplit":
+        st.split = true;
         yield BLOCK_COST;
         break;
 
@@ -176,7 +218,7 @@ export class ScriptRunner {
     this.script = script;
     this.host = host;
     this.cycleCooldown = cycleCooldown;
-    this.state = { dir: 0, ...freshOpts(), currentId: null, trace: [] };
+    this.state = { dir: 0, ...freshOpts(), loopIndex: 0, currentId: null, trace: [] };
   }
 
   /** 本輪執行進度 0～1，純粹給 HUD 顯示用 */

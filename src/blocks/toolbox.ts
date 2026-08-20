@@ -13,6 +13,7 @@ import type * as Blockly from "blockly/core";
 const RARE_LABEL: Record<string, string> = {
   ls_homing: "追蹤彈",
   ls_explode: "爆裂彈",
+  ls_split: "分裂彈",
 };
 
 const BASE_CONTENTS: Blockly.utils.toolbox.ToolboxItemInfo[] = [
@@ -23,12 +24,18 @@ const BASE_CONTENTS: Blockly.utils.toolbox.ToolboxItemInfo[] = [
     { kind: "label", text: "發射" },
     { kind: "block", type: "ls_fire" },
     { kind: "block", type: "ls_turn" },
+    { kind: "block", type: "ls_turn_by_index" },
     { kind: "block", type: "ls_aim" },
     { kind: "sep", gap: "16" },
     { kind: "label", text: "子彈狀態" },
     { kind: "block", type: "ls_set_speed" },
     { kind: "block", type: "ls_set_size" },
     { kind: "block", type: "ls_set_pierce" },
+    { kind: "block", type: "ls_set_life" },
+    { kind: "sep", gap: "16" },
+    { kind: "label", text: "累加（放進迴圈會一次比一次多）" },
+    { kind: "block", type: "ls_add_speed" },
+    { kind: "block", type: "ls_add_size" },
 ];
 
 /**

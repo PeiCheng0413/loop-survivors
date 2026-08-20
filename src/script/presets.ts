@@ -18,6 +18,8 @@ const fire = (): Node => ({ kind: "fire", id: nid() });
 const turn = (degrees: number): Node => ({ kind: "turn", id: nid(), degrees });
 const aim = (target: AimTarget): Node => ({ kind: "aim", id: nid(), target });
 const setSpeed = (value: number): Node => ({ kind: "setSpeed", id: nid(), value });
+const turnByIndex = (degrees: number): Node => ({ kind: "turnByIndex", id: nid(), degrees });
+const addSpeed = (value: number): Node => ({ kind: "addSpeed", id: nid(), value });
 const setSize = (value: number): Node => ({ kind: "setSize", id: nid(), value });
 const setPierce = (value: number): Node => ({ kind: "setPierce", id: nid(), value });
 
@@ -39,7 +41,16 @@ export const PRESETS: Script[] = [
     // 「我是不是該加個重複」—— 那個時刻就是我們要的。
     name: "狙擊手",
     capacity: 8,
-    body: [aim("nearest"), setSpeed(700), setSize(7), setPierce(3), fire()],
+    // 刻意壓低規格：它是「無迴圈」的對照組，若它是最強起手，
+    // 學生會得到「不用迴圈也很好」的錯誤結論
+    body: [aim("nearest"), setSpeed(560), setSize(6), setPierce(1), fire()],
+  },
+  {
+    // 示範迴圈變數與累加器：旋轉量隨圈數遞增畫出螺旋，
+    // 速度逐發累加讓子彈分層飛出，兩者都是「迴圈裡的值會一路長上去」
+    name: "螺旋手",
+    capacity: 14,
+    body: [repeat(8, [turn(44), turnByIndex(6), addSpeed(40), fire()])],
   },
   {
     // 巢狀迴圈示範。M0 用來確認「同一塊積木塞內層或外層，畫面完全不同」

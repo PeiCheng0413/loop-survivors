@@ -144,4 +144,56 @@ export const BLOCK_DEFS = [
     colour: RARE,
     tooltip: "稀有積木。之後發射的子彈命中時會炸開，波及周圍敵人",
   },
+  {
+    /**
+     * 迴圈變數的輕量版。不引入完整的變數系統，但讓學生第一次能用到
+     * 「現在是第幾圈」—— 而它畫出來就是螺旋。
+     */
+    type: "ls_turn_by_index",
+    message0: "方向旋轉 %1 度 × 迴圈次數",
+    args0: [{ type: "field_number", name: "DEGREES", value: 5, min: -90, max: 90, precision: 1 }],
+    previousStatement: null,
+    nextStatement: null,
+    colour: ACTION,
+    tooltip: "轉的角度會隨著迴圈跑到第幾圈而變大。第一圈不轉，第二圈轉一份，第三圈轉兩份……畫出來是螺旋",
+  },
+  {
+    // 放進迴圈就是累加器 —— 重複做加法，值會一路長上去
+    type: "ls_add_speed",
+    message0: "子彈速度增加 %1",
+    args0: [{ type: "field_number", name: "VALUE", value: 60, min: -300, max: 300, precision: 10 }],
+    previousStatement: null,
+    nextStatement: null,
+    colour: STATE,
+    tooltip: "在原本的速度上加減。放在迴圈裡會一次比一次快，射出分層的波",
+  },
+  {
+    type: "ls_add_size",
+    message0: "子彈大小增加 %1",
+    args0: [{ type: "field_number", name: "VALUE", value: 1, min: -6, max: 6, precision: 1 }],
+    previousStatement: null,
+    nextStatement: null,
+    colour: STATE,
+    tooltip: "在原本的大小上加減。放在迴圈裡會一發比一發大",
+  },
+  {
+    type: "ls_set_life",
+    message0: "子彈存活 %1 秒 %2",
+    args0: [
+      { type: "field_number", name: "VALUE", value: 1.6, min: 0.2, max: 5, precision: 0.1 },
+      { type: "field_label", name: "HINT", text: "" },
+    ],
+    previousStatement: null,
+    nextStatement: null,
+    colour: STATE,
+    tooltip: "子彈飛多久後消失。速度 × 存活時間 = 射程",
+  },
+  {
+    type: "ls_split",
+    message0: "子彈改為分裂",
+    previousStatement: null,
+    nextStatement: null,
+    colour: RARE,
+    tooltip: "稀有積木。命中時分裂成兩發較小的子彈，往兩側散開",
+  },
 ];

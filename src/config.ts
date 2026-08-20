@@ -67,7 +67,9 @@ export const MOBILITY = {
   /** 各項規格對負載的權重 */
   speedWeight: 0.5,
   sizeWeight: 0.6,
-  pierceWeight: 0.8,
+  pierceWeight: 1.15,
+  /** 存活時間換算射程，一樣要付機動代價 */
+  lifeWeight: 0.55,
   /** 負載換算成移速的比率。懲罰與獎勵不對稱，降規格的回報較高 */
   penaltyPerLoad: 0.12,
   bonusPerLoad: 0.25,
@@ -89,15 +91,24 @@ export const ENEMY = {
   speed: 62,
   hp: 12,
   damage: 8,
+  /**
+   * 敵人血量每分鐘的成長倍率。
+   *
+   * 血量固定的話，蓄力與高規格子彈的優勢永遠發揮不出來 —— 打 12 血的雜魚，
+   * 15 點傷害有兩成溢出浪費，多打的部分完全沒有意義，於是「多而弱」
+   * 永遠優於「少而強」，build 分化就死了一半。血量隨時間長大之後，
+   * 高單發流才有登場的舞台（見 docs/DECISIONS.md §5b 的但書）。
+   */
+  hpGrowthPerMinute: 0.28,
   /** 敵人互相推擠的力道，避免全部疊在同一點變成一顆球 */
   separation: 90,
 };
 
 /** 生成節奏：每秒生成數 = base + time * growth，並受 cap 限制 */
 export const SPAWN = {
-  base: 2,
-  growth: 0.35,
-  cap: 26,
+  base: 3,
+  growth: 0.42,
+  cap: 34,
   /** 生成距離 = 螢幕對角線一半 + 這個緩衝，確保在畫面外出現 */
   margin: 80,
 };
@@ -133,13 +144,43 @@ export const GEM = {
   value: 1,
 };
 
-/** 升級所需經驗：level 級升到下一級要幾顆球 */
+/**
+ * 升級卡的堆疊幅度。**一律用加算而非乘算。**
+ *
+ * 乘算會指數爆炸：傷害每級 ×1.2 疊 18 層是 26 倍，攻速 ×0.85 疊 18 層等於
+ * 快 20 倍 —— 實測就是這樣把每秒傷害推到 1231。加算是線性成長，
+ * 後期仍有感但不會失控。
+ */
+export const UPGRADE = {
+  damage: 0.22,
+  moveSpeed: 0.09,
+  pickup: 0.3,
+  /** 攻速用遞減式：冷卻 = 基準 ÷ (1 + haste × 堆疊數)，永遠不會歸零 */
+  haste: 0.16,
+  capacity: 2,
+};
+
+/**
+ * 升級所需經驗：level 級升到下一級要幾顆球。
+ *
+ * 曲線要夠陡。每次升等都會暫停遊戲跳卡片，太頻繁的話一局會被打斷幾十次，
+ * 節奏全毀 —— 而且學生根本來不及思考「這塊插哪」，升等反而變成干擾。
+ * 目標是五分鐘一局升 15～20 級。
+ */
 export function xpForLevel(level: number): number {
-  return 4 + level * 3;
+  return 8 + level * 9;
 }
 
 /** 追蹤彈的最大轉向速率（度／秒）。太高會變成無腦制導，失去佈陣的意義 */
 export const HOMING_TURN_RATE = 260;
+
+/** 分裂彈：命中後往兩側各分出一發較小的子彈 */
+export const SPLIT = {
+  angle: 34,
+  sizeRatio: 0.7,
+  damageRatio: 0.5,
+  lifeRatio: 0.6,
+};
 
 /** 爆裂彈的範圍與傷害比例 */
 export const EXPLODE = {

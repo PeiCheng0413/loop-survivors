@@ -26,6 +26,11 @@ function nodeToState(node: Node): State {
     case "setSpeed": return { type: "ls_set_speed", fields: { VALUE: node.value } };
     case "setSize": return { type: "ls_set_size", fields: { VALUE: node.value } };
     case "setPierce": return { type: "ls_set_pierce", fields: { VALUE: node.value } };
+    case "turnByIndex": return { type: "ls_turn_by_index", fields: { DEGREES: node.degrees } };
+    case "addSpeed": return { type: "ls_add_speed", fields: { VALUE: node.value } };
+    case "addSize": return { type: "ls_add_size", fields: { VALUE: node.value } };
+    case "setLife": return { type: "ls_set_life", fields: { VALUE: node.value } };
+    case "setSplit": return { type: "ls_split" };
     case "setHoming": return { type: "ls_homing" };
     case "setExplode": return { type: "ls_explode" };
   }

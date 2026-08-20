@@ -1,4 +1,4 @@
-import { BULLET, CHARGE, CYCLE_COOLDOWN } from "./config";
+import { CHARGE, CYCLE_COOLDOWN } from "./config";
 import type { AimTarget, Script } from "./script/ast";
 import { ScriptRunner, type BulletOpts, type ScriptHost } from "./script/vm";
 
@@ -74,7 +74,7 @@ export class Preview implements ScriptHost {
       vx: Math.cos(a) * opts.speed,
       vy: Math.sin(a) * opts.speed,
       r: opts.size,
-      life: BULLET.life,
+      life: opts.life,
       charge: CHARGE.min + (CHARGE.max - CHARGE.min) * gap,
     });
   }

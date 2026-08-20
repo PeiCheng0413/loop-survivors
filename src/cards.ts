@@ -1,3 +1,4 @@
+import { UPGRADE } from "./config";
 import type { Editor } from "./editor";
 import type { World } from "./game/world";
 
@@ -47,54 +48,63 @@ const CARDS: Card[] = [
     apply: (c) => c.editor.unlockBlock("ls_explode"),
   },
   {
+    id: "block_split",
+    kind: "block",
+    name: "分裂彈",
+    desc: "獲得一塊「子彈改為分裂」積木。命中後分成兩發往兩側散開",
+    available: (c) => c.editor.rareCount("ls_split") < RARE_LIMIT,
+    apply: (c) => c.editor.unlockBlock("ls_split"),
+  },
+  {
     id: "stat_capacity",
     kind: "stat",
     // 容量卡是「程式空間」的成長，跟威力卡競爭 ——
     // 要更多施展空間，還是更強的數值？這個取捨本身就是教學點
-    name: "腳本容量 +2",
+    name: `腳本容量 +${UPGRADE.capacity}`,
     desc: "攻擊腳本可以多放兩塊積木",
     available: () => true,
-    apply: (c) => c.editor.addCapacity(2),
+    apply: (c) => c.editor.addCapacity(UPGRADE.capacity),
   },
   {
     id: "stat_damage",
     kind: "stat",
-    name: "傷害 +20%",
+    name: `傷害 +${Math.round(UPGRADE.damage * 100)}%`,
     desc: "所有子彈的傷害提升",
     available: () => true,
     apply: (c) => {
-      c.world.stats.damage *= 1.2;
+      // 加算而非乘算：乘算疊十幾層會指數爆炸
+      c.world.stats.damage += UPGRADE.damage;
     },
   },
   {
     id: "stat_cooldown",
     kind: "stat",
-    name: "攻速 +15%",
-    desc: "每輪腳本之間的冷卻縮短",
+    name: "攻速提升",
+    desc: "每輪腳本之間的冷卻縮短（效果遞減，永遠不會歸零）",
     available: () => true,
     apply: (c) => {
-      c.world.stats.cooldown *= 0.85;
+      c.world.stats.haste += 1;
       c.world.refreshCooldown();
     },
   },
   {
     id: "stat_move",
     kind: "stat",
-    name: "移動速度 +12%",
+    name: `移動速度 +${Math.round(UPGRADE.moveSpeed * 100)}%`,
     desc: "走得更快，也更容易去撿經驗球",
     available: () => true,
     apply: (c) => {
-      c.world.stats.moveSpeed *= 1.12;
+      c.world.stats.moveSpeed += UPGRADE.moveSpeed;
     },
   },
   {
     id: "stat_pickup",
     kind: "stat",
-    name: "拾取範圍 +35%",
+    name: `拾取範圍 +${Math.round(UPGRADE.pickup * 100)}%`,
     desc: "經驗球從更遠的地方就會飛過來",
     available: () => true,
     apply: (c) => {
-      c.world.stats.pickup *= 1.35;
+      c.world.stats.pickup += UPGRADE.pickup;
     },
   },
 ];

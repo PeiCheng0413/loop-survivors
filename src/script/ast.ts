@@ -26,10 +26,26 @@ export type Node =
   | { kind: "setSize"; id: string; value: number }
   /** 子彈穿透設為 (value) */
   | { kind: "setPierce"; id: string; value: number }
+  /**
+   * 方向旋轉 (degrees) 度 × 目前迴圈次數。
+   *
+   * 這是「迴圈變數」的輕量版：不引入完整的變數系統，但讓學生第一次能用到
+   * 「現在是第幾圈」這個資訊 —— 而它畫出來就是螺旋。迴圈跑到第幾次不再只是
+   * 內部細節，而是可以拿來運算的東西。
+   */
+  | { kind: "turnByIndex"; id: string; degrees: number }
+  /** 子彈速度增加 (value) —— 放進迴圈就是累加器 */
+  | { kind: "addSpeed"; id: string; value: number }
+  /** 子彈大小增加 (value) —— 放進迴圈就是累加器 */
+  | { kind: "addSize"; id: string; value: number }
+  /** 子彈存活時間設為 (value) 秒。速度 × 存活 = 射程 */
+  | { kind: "setLife"; id: string; value: number }
   /** 子彈改為追蹤 —— 稀有積木，只能從升級卡取得 */
   | { kind: "setHoming"; id: string }
   /** 子彈改為爆裂 —— 稀有積木，只能從升級卡取得 */
-  | { kind: "setExplode"; id: string };
+  | { kind: "setExplode"; id: string }
+  /** 子彈改為分裂 —— 稀有積木，命中後分成兩發小彈 */
+  | { kind: "setSplit"; id: string };
 
 export interface Script {
   name: string;
@@ -84,6 +100,7 @@ export interface Spec {
   speed: number;
   size: number;
   pierce: number;
+  life: number;
 }
 
 /**
@@ -99,6 +116,10 @@ export function scriptSpec(nodes: Node[], base: Spec): Spec {
       if (node.kind === "setSpeed") spec.speed = Math.max(spec.speed, node.value);
       else if (node.kind === "setSize") spec.size = Math.max(spec.size, node.value);
       else if (node.kind === "setPierce") spec.pierce = Math.max(spec.pierce, node.value);
+      else if (node.kind === "setLife") spec.life = Math.max(spec.life, node.value);
+      // 累加積木要算進負載，否則「速度增加 300 放進迴圈」就是免費的規格提升
+      else if (node.kind === "addSpeed" && node.value > 0) spec.speed += node.value;
+      else if (node.kind === "addSize" && node.value > 0) spec.size += node.value;
       else if (node.kind === "repeat") walk(node.body);
     }
   };

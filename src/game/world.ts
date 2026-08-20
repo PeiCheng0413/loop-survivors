@@ -1,6 +1,6 @@
 import {
   BULLET, CHARGE, CYCLE_COOLDOWN, ENEMY, EXPLODE, GEM, HOMING_TURN_RATE,
-  MAX_BULLETS, MOBILITY, PLAYER, SPAWN, xpForLevel,
+  MAX_BULLETS, MOBILITY, PLAYER, SPAWN, SPLIT, UPGRADE, xpForLevel,
 } from "../config";
 import { scriptSpec, type Script } from "../script/ast";
 import type { AimTarget } from "../script/ast";
@@ -32,7 +32,7 @@ export class World implements ScriptHost {
   xp = 0;
   /** 還沒被玩家處理掉的升級次數。主迴圈看到 > 0 就暫停並跳卡片 */
   pendingLevelUps = 0;
-  stats: Stats = { damage: 1, moveSpeed: 1, pickup: 1, cooldown: 1 };
+  stats: Stats = { damage: 1, moveSpeed: 1, pickup: 1, haste: 0 };
 
   /** 視窗尺寸，決定敵人要在多遠的畫面外生成 */
   private viewW = 1280;
@@ -69,7 +69,8 @@ export class World implements ScriptHost {
 
   /** 屬性變動後要把冷卻同步進 runner */
   refreshCooldown(): void {
-    this.runner.setCooldown(CYCLE_COOLDOWN * this.stats.cooldown);
+    // 遞減式：堆疊越多加成越小，但永遠不會把冷卻壓到零
+    this.runner.setCooldown(CYCLE_COOLDOWN / (1 + UPGRADE.haste * this.stats.haste));
   }
 
   /** 升到下一級還需要多少經驗 */
@@ -93,7 +94,7 @@ export class World implements ScriptHost {
     this.level = 1;
     this.xp = 0;
     this.pendingLevelUps = 0;
-    this.stats = { damage: 1, moveSpeed: 1, pickup: 1, cooldown: 1 };
+    this.stats = { damage: 1, moveSpeed: 1, pickup: 1, haste: 0 };
     this.time = 0;
     this.kills = 0;
     this.dead = false;
@@ -118,10 +119,11 @@ export class World implements ScriptHost {
       r: opts.size,
       damage: BULLET.damage * charge * this.stats.damage,
       pierce: opts.pierce,
-      life: BULLET.life,
+      life: opts.life,
       charge,
       homing: opts.homing,
       explode: opts.explode,
+      split: opts.split,
     });
   }
 
@@ -187,11 +189,13 @@ export class World implements ScriptHost {
     while (this.spawnAccum >= 1) {
       this.spawnAccum -= 1;
       const a = Math.random() * Math.PI * 2;
+      // 血量隨時間成長，讓高單發傷害的 build 到中後期才有舞台
+      const hp = ENEMY.hp * (1 + (this.time / 60) * ENEMY.hpGrowthPerMinute);
       this.enemies.push({
         x: this.player.x + Math.cos(a) * radius,
         y: this.player.y + Math.sin(a) * radius,
         r: ENEMY.radius,
-        hp: ENEMY.hp,
+        hp,
         speed: ENEMY.speed * (0.85 + Math.random() * 0.3),
         hit: 0,
       });
@@ -280,6 +284,35 @@ export class World implements ScriptHost {
     return best;
   }
 
+  /**
+   * 分裂彈命中後往兩側各分出一發。
+   *
+   * 分出來的子彈 split 為 false —— 否則會無限連鎖分裂，一發變成指數爆炸，
+   * 瞬間打爆子彈上限也打爆效能。
+   */
+  private splitAt(b: Bullet): void {
+    const base = Math.atan2(b.vy, b.vx);
+    const speed = Math.hypot(b.vx, b.vy);
+    for (const sign of [-1, 1]) {
+      if (this.bullets.length >= MAX_BULLETS) return;
+      const a = base + sign * SPLIT.angle * DEG;
+      this.bullets.push({
+        x: b.x,
+        y: b.y,
+        vx: Math.cos(a) * speed,
+        vy: Math.sin(a) * speed,
+        r: Math.max(1, b.r * SPLIT.sizeRatio),
+        damage: b.damage * SPLIT.damageRatio,
+        pierce: 0,
+        life: b.life * SPLIT.lifeRatio,
+        charge: b.charge,
+        homing: b.homing,
+        explode: false,
+        split: false,
+      });
+    }
+  }
+
   /** 爆裂彈命中時波及周圍敵人 */
   private explodeAt(x: number, y: number, damage: number): void {
     const rr = EXPLODE.radius ** 2;
@@ -336,6 +369,7 @@ export class World implements ScriptHost {
         e.hp -= b.damage;
         e.hit = 0.08;
         if (b.explode) this.explodeAt(b.x, b.y, b.damage);
+        if (b.split) this.splitAt(b);
         if (b.pierce > 0) b.pierce -= 1;
         else consumed = true;
       });
@@ -400,12 +434,14 @@ function computeMobility(script: Script): number {
     speed: BULLET.speed,
     size: BULLET.size,
     pierce: BULLET.pierce,
+    life: BULLET.life,
   });
 
   const load =
     MOBILITY.speedWeight * ((spec.speed - BULLET.speed) / BULLET.speed) +
     MOBILITY.sizeWeight * ((spec.size - BULLET.size) / BULLET.size) +
-    MOBILITY.pierceWeight * (spec.pierce - BULLET.pierce) / 2;
+    (MOBILITY.pierceWeight * (spec.pierce - BULLET.pierce)) / 2 +
+    MOBILITY.lifeWeight * ((spec.life - BULLET.life) / BULLET.life);
 
   const rate = load >= 0 ? MOBILITY.penaltyPerLoad : MOBILITY.bonusPerLoad;
   return Math.max(MOBILITY.minMultiplier, Math.min(MOBILITY.maxMultiplier, 1 - load * rate));

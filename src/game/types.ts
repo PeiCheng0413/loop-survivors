@@ -34,6 +34,7 @@ export interface Bullet {
   life: number;
   homing: boolean;
   explode: boolean;
+  split: boolean;
 }
 
 /** 敵人掉落的經驗球 */
@@ -53,6 +54,6 @@ export interface Stats {
   damage: number;
   moveSpeed: number;
   pickup: number;
-  /** 攻擊週期冷卻的倍率，越小越快 */
-  cooldown: number;
+  /** 攻速堆疊數。冷卻 = 基準 ÷ (1 + haste × 這個值)，遞減但永不歸零 */
+  haste: number;
 }

@@ -45,6 +45,16 @@ function toNode(b: Blockly.Block): Node | null {
       return { kind: "setSize", id: b.id, value: num(b, "VALUE") };
     case "ls_set_pierce":
       return { kind: "setPierce", id: b.id, value: num(b, "VALUE") };
+    case "ls_turn_by_index":
+      return { kind: "turnByIndex", id: b.id, degrees: num(b, "DEGREES") };
+    case "ls_add_speed":
+      return { kind: "addSpeed", id: b.id, value: num(b, "VALUE") };
+    case "ls_add_size":
+      return { kind: "addSize", id: b.id, value: num(b, "VALUE") };
+    case "ls_set_life":
+      return { kind: "setLife", id: b.id, value: num(b, "VALUE") };
+    case "ls_split":
+      return { kind: "setSplit", id: b.id };
     case "ls_homing":
       return { kind: "setHoming", id: b.id };
     case "ls_explode":

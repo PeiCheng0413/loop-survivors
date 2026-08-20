@@ -42,6 +42,10 @@ export function pierceHint(value: number): string {
   return mobilityHint((MOBILITY.pierceWeight * (value - BULLET.pierce)) / 2);
 }
 
+export function lifeHint(value: number): string {
+  return mobilityHint(MOBILITY.lifeWeight * ((value - BULLET.life) / BULLET.life));
+}
+
 /** 依積木型別算出提示文字。回傳 null 代表這塊積木沒有提示 */
 export function hintFor(type: string, value: number): string | null {
   switch (type) {
@@ -49,6 +53,7 @@ export function hintFor(type: string, value: number): string | null {
     case "ls_set_speed": return speedHint(value);
     case "ls_set_size": return sizeHint(value);
     case "ls_set_pierce": return pierceHint(value);
+    case "ls_set_life": return lifeHint(value);
     default: return null;
   }
 }
@@ -59,4 +64,5 @@ export const HINT_SOURCE: Record<string, string> = {
   ls_set_speed: "VALUE",
   ls_set_size: "VALUE",
   ls_set_pierce: "VALUE",
+  ls_set_life: "VALUE",
 };

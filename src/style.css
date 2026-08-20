@@ -196,10 +196,16 @@ html, body {
   border-radius: 8px;
 }
 
-/* 超出容量時整行轉紅 —— 學生不必去讀規則就知道不能再加了 */
-.hud-meta.over {
+/* 容量見底時先轉黃預警、額滿轉紅 —— 學生不必去讀規則，
+   看顏色就知道「該想辦法用更少的積木做更多事」了 */
+.hud-meta.near {
+  color: #ffe0a8;
+  border-color: rgba(255, 200, 60, 0.5);
+}
+
+.hud-meta.full {
   color: #ffb3b8;
-  border-color: rgba(255, 77, 90, 0.6);
+  border-color: rgba(255, 77, 90, 0.65);
   background: rgba(60, 16, 22, 0.85);
 }
 

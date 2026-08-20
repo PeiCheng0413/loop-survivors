@@ -34,15 +34,26 @@ export class Hud {
    * 「3/12 格 → 每輪 8 發（展開寫需 16 格）」就是迴圈價值的量化 ——
    * 學生每拖一塊積木，這行數字就會動，容量的壓力因此是持續可見的。
    */
-  setScript(script: Script, used: number, overCapacity: boolean, mobility: number): void {
+  /**
+   * 腳本改變時更新效率指標。
+   *
+   * 容量的壓力必須是持續可見的 —— Blockly 會在額滿時直接不讓你拖出積木，
+   * 若畫面上沒有預警，學生只會覺得「工具箱壞了」而不是「我該用迴圈了」。
+   */
+  setScript(script: Script, used: number, mobility: number): void {
     const fires = countFires(script.body);
     const expanded = countExpanded(script.body);
+    const left = script.capacity - used;
+
     // 移速跟著子彈規格連動，拖積木的當下就看得到代價
     const move = Math.round(mobility * 100);
+    const capacity =
+      left <= 0 ? `容量 ${used}/${script.capacity} 格（已滿）` : `容量 ${used}/${script.capacity} 格`;
     this.meta.textContent =
-      `${script.name}　·　容量 ${used}/${script.capacity} 格　·　每輪 ${fires} 發　·　` +
+      `${script.name}　·　${capacity}　·　每輪 ${fires} 發　·　` +
       `展開寫需 ${expanded} 格　·　移速 ${move}%`;
-    this.meta.classList.toggle("over", overCapacity);
+    this.meta.classList.toggle("full", left <= 0);
+    this.meta.classList.toggle("near", left > 0 && left <= 2);
   }
 
   update(world: World, fps: number, paused: boolean): void {

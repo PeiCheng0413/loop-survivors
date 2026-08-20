@@ -53,7 +53,7 @@ const editor = new Editor(blocklyRoot, () => {
   const script = editor.read();
   world.setScript(script);
   preview.setScript(script);
-  hud.setScript(script, editor.used(), editor.used() > editor.capacity(), world.mobilityMultiplier);
+  hud.setScript(script, editor.used(), world.mobilityMultiplier);
 });
 
 function loadPreset(i: number): void {

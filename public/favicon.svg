@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- 迴圈生存者的圖示：一個缺口的環（迴圈）＋ 剛射出去的子彈。
+       用 SVG 而非 .ico，維持專案零二進位資源的原則。 -->
+  <rect width="32" height="32" rx="7" fill="#0b0f18"/>
+  <path d="M22.36 9.64A9 9 0 1 1 25 16" fill="none" stroke="#5ce1ff"
+        stroke-width="3.6" stroke-linecap="round"/>
+  <circle cx="24.5" cy="7.5" r="3.4" fill="#ffc83c"/>
+</svg>

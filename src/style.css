@@ -46,6 +46,10 @@ html, body {
   border-top: 1px solid var(--border);
 }
 
+#preview.hidden {
+  display: none;
+}
+
 #preview-canvas {
   display: block;
   width: 100%;

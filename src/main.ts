@@ -14,6 +14,7 @@ const hudRoot = document.querySelector<HTMLElement>("#hud")!;
 const editorRoot = document.querySelector<HTMLElement>("#editor")!;
 const blocklyRoot = document.querySelector<HTMLElement>("#blockly")!;
 const previewCanvas = document.querySelector<HTMLCanvasElement>("#preview-canvas")!;
+const previewPanel = document.querySelector<HTMLElement>("#preview")!;
 const splitterRoot = document.querySelector<HTMLElement>("#splitter")!;
 
 const renderer = new Renderer(canvas);
@@ -61,13 +62,33 @@ function resize(): void {
   // 收合時容器是 display:none，量測會得到 0，跳過即可
   if (splitter.width > 0) {
     editor.resize();
-    preview.resize();
+    if (paused) preview.resize();
   }
 }
 window.addEventListener("resize", resize);
 resize();
 
 let paused = false;
+
+/**
+ * 試射預覽只在暫停時出現（docs/DECISIONS.md §8）。
+ *
+ * 平時藏起來有兩個好處：積木區多出將近 200px 的高度，而戰場上本來就
+ * 看得到彈幕、不需要第二份。暫停時才是真正需要它的時刻 —— 學生停下來想
+ * 「這塊插哪裡」，那時戰場是靜止的，只剩預覽在動。
+ */
+function setPaused(next: boolean): void {
+  paused = next;
+  previewPanel.classList.toggle("hidden", !paused);
+  if (paused) {
+    // 從頭跑一輪：否則會看到藏起來期間殘留的子彈，形狀是亂的
+    preview.resize();
+    preview.setScript(editor.read());
+  }
+  // 預覽收合會改變積木區高度，Blockly 要重新量測
+  if (splitter.width > 0) editor.resize();
+}
+
 let last = performance.now();
 let accumulator = 0;
 let fps = 60;
@@ -85,7 +106,7 @@ function frame(now: number): void {
   // 在積木欄位裡打字時，按鍵不該被當成遊戲操作
   const typing = document.activeElement?.tagName === "INPUT";
   if (!typing) {
-    if (input.justPressed("Space")) paused = !paused;
+    if (input.justPressed("Space")) setPaused(!paused);
     if (input.justPressed("KeyR")) world.reset(editor.read());
     for (let i = 0; i < PRESETS.length; i++) {
       if (input.justPressed(`Digit${i + 1}`)) loadPreset(i);
@@ -102,10 +123,10 @@ function frame(now: number): void {
     }
   }
 
-  // 預覽不受暫停影響 —— 暫停時正是最需要它的時候：學生停下來想
-  // 「這塊插哪裡」，預覽就在旁邊即時演示結果
-  preview.step(dt);
-  preview.draw();
+  if (paused) {
+    preview.step(dt);
+    preview.draw();
+  }
 
   renderer.draw(world, viewW, viewH, dpr);
   // 暫停時傳 dt=0 凍結餘輝 —— 空白鍵就成了「定格檢視腳本跑到哪」的工具
@@ -114,4 +135,5 @@ function frame(now: number): void {
   input.endFrame();
 }
 
+setPaused(false); // 初始把預覽收起來。必須在 paused 宣告之後，否則會 TDZ
 requestAnimationFrame(frame);

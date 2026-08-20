@@ -19,7 +19,7 @@ export class Hud {
       <div class="hud-hp"><i></i></div>
       <div class="hud-progress"><i></i></div>
       <div class="hud-banner"></div>
-      <div class="hud-help">WASD／方向鍵 移動　·　1-4 換角色　·　空白 暫停　·　R 重來</div>
+      <div class="hud-help">WASD／方向鍵 移動　·　1-4 換角色　·　空白 暫停並試射預覽　·　R 重來</div>
     `;
     this.stats = root.querySelector(".hud-stats")!;
     this.meta = root.querySelector(".hud-meta")!;

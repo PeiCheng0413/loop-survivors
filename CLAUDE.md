@@ -8,8 +8,9 @@ Survivors 式的戰場中，被遊戲規則逼著自己發現迴圈的價值。
 
 ## 目前進度
 
-M1 進行中：Blockly 已接上，積木可拖、即時套用、積木高亮已接到真積木上。
-尚未做：試射預覽視窗、本輪執行次數顯示。里程碑定義見 DECISIONS.md §13。
+M1 功能完成：Blockly 已接上，積木可拖、即時套用、積木高亮、本輪執行次數、
+試射預覽視窗、面板可拖曳收合。下一步是 M2（升級卡與三層限制的完整實作）。
+里程碑定義見 DECISIONS.md §13。
 
 ## 技術棧
 
@@ -35,7 +36,9 @@ src/
   render/
     renderer.ts      Canvas 2D 繪製：純粹讀 World 畫出來，不改狀態
     hud.ts           戰場側 HUD（積木面板已由 editor.ts 接手）
-  editor.ts          Blockly 編輯器：載入／讀出腳本、積木高亮
+  editor.ts          Blockly 編輯器：載入／讀出腳本、積木高亮與執行次數
+  preview.ts         試射預覽：餵假 host 重用同一個 VM
+  splitter.ts        編輯器面板的拖曳／收合
   blocks/
     definitions.ts   八塊積木的定義（**純資料，不依賴 Blockly**）
     defs.ts          把定義註冊進 Blockly ＋ 深色主題

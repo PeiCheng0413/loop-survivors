@@ -19,6 +19,12 @@ export class Editor {
   private heat = new Map<string, number>();
   private headId: string | null = null;
   private current: Script;
+  /** 本輪累積中的執行次數 */
+  private counts = new Map<string, number>();
+  /** 上一輪的執行次數。冷卻期間維持不變，學生才讀得到 */
+  private shown = new Map<string, number>();
+  private badges = new Map<string, SVGTextElement>();
+  private lastCycle = -1;
 
   constructor(container: HTMLElement, onChange: () => void) {
     this.workspace = Blockly.inject(container, {
@@ -51,6 +57,10 @@ export class Editor {
     this.workspace.options.maxBlocks = script.capacity + 1;
     this.current = script;
     this.heat.clear();
+    this.counts.clear();
+    this.shown.clear();
+    this.badges.clear(); // 積木會被整批換掉，舊的 SVG 節點跟著消失
+    this.lastCycle = -1;
     this.headId = null;
     Blockly.serialization.workspaces.load(scriptToState(script), this.workspace);
   }
@@ -79,9 +89,22 @@ export class Editor {
    * Blockly 裡是父積木的子元素，套在群組上會讓亮度滲透到內層積木，
    * 看起來像整個迴圈都在執行。
    */
-  updateHeat(trace: string[], dt: number): void {
-    for (const id of trace) this.heat.set(id, 1);
+  updateHeat(trace: string[], dt: number, cycle: number): void {
+    for (const id of trace) {
+      this.heat.set(id, 1);
+      this.counts.set(id, (this.counts.get(id) ?? 0) + 1);
+    }
     if (trace.length > 0) this.headId = trace[trace.length - 1];
+
+    // 一輪跑完就把計數換到顯示欄位，冷卻期間數字不動
+    if (cycle !== this.lastCycle) {
+      if (this.counts.size > 0) {
+        this.shown = new Map(this.counts);
+        this.counts.clear();
+        this.renderBadges();
+      }
+      this.lastCycle = cycle;
+    }
 
     const fade = dt / HEAT_DECAY;
     for (const [id, prev] of [...this.heat]) {
@@ -105,6 +128,49 @@ export class Editor {
       }
 
       if (h <= 0) this.heat.delete(id);
+    }
+  }
+
+  /**
+   * 在每塊積木旁標上「本輪執行了幾次」。
+   *
+   * 這是教巢狀迴圈最有力的一個畫面：外層 ×8、內層 ×24 並排，
+   * 「內層跑得比外層兇」不需要解釋，指著看就懂了。
+   * 動畫看過就忘，數字會留在畫面上被討論。
+   *
+   * 標籤直接掛進積木自己的 SVG 群組，因此縮放、拖曳、捲動時
+   * 都會自動跟著走，不需要任何座標換算。
+   */
+  private renderBadges(): void {
+    for (const [id, badge] of this.badges) {
+      if (!this.shown.has(id)) {
+        badge.remove();
+        this.badges.delete(id);
+      }
+    }
+
+    for (const [id, n] of this.shown) {
+      const block = this.workspace.getBlockById(id) as Blockly.BlockSvg | null;
+      const root = block?.getSvgRoot();
+      if (!root) continue;
+
+      // 只跑一次的積木不標數字：那是常態，標了只是噪音
+      if (n <= 1) {
+        this.badges.get(id)?.remove();
+        this.badges.delete(id);
+        continue;
+      }
+
+      let badge = this.badges.get(id);
+      if (!badge || !badge.isConnected) {
+        badge = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        badge.setAttribute("class", "ls-count");
+        this.badges.set(id, badge);
+      }
+      root.appendChild(badge); // 重新掛回最上層，避免被積木重繪蓋住
+      badge.setAttribute("x", String(block!.width + 10));
+      badge.setAttribute("y", "22");
+      badge.textContent = `×${n}`;
     }
   }
 }

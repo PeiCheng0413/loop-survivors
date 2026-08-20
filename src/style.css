@@ -28,6 +28,37 @@ html, body {
   top: 0;
   bottom: 0;
   width: var(--editor-w);
+  display: flex;
+  flex-direction: column;
+}
+
+/* min-height: 0 是必要的 —— flex 子項預設不會縮到內容以下，
+   少了它 Blockly 會把預覽區擠出畫面外 */
+#blockly {
+  flex: 1;
+  min-height: 0;
+}
+
+#preview {
+  position: relative;
+  height: 190px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+}
+
+#preview-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.preview-label {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  font-size: 11px;
+  color: var(--dim);
+  pointer-events: none;
 }
 
 /* 可拖曳的分隔線。拖曳＝調寬度，單擊＝收合／展開，雙擊＝還原預設。
@@ -199,4 +230,15 @@ html, body {
 
 .blocklyText {
   font-family: "PingFang TC", "Noto Sans TC", system-ui, sans-serif !important;
+}
+
+/* 每塊積木旁的「本輪執行次數」。掛在積木自己的 SVG 群組裡，
+   所以縮放與拖曳都會自動跟著走，不需要座標換算。 */
+.ls-count {
+  fill: #ffc83c;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: "PingFang TC", system-ui, sans-serif;
+  opacity: 0.85;
+  pointer-events: none;
 }

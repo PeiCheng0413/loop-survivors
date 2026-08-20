@@ -6,16 +6,20 @@ import { World } from "./game/world";
 import { Hud } from "./render/hud";
 import { Renderer } from "./render/renderer";
 import { Splitter } from "./splitter";
+import { Preview } from "./preview";
 import { PRESETS } from "./script/presets";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
 const hudRoot = document.querySelector<HTMLElement>("#hud")!;
 const editorRoot = document.querySelector<HTMLElement>("#editor")!;
+const blocklyRoot = document.querySelector<HTMLElement>("#blockly")!;
+const previewCanvas = document.querySelector<HTMLCanvasElement>("#preview-canvas")!;
 const splitterRoot = document.querySelector<HTMLElement>("#splitter")!;
 
 const renderer = new Renderer(canvas);
 const hud = new Hud(hudRoot);
 const input = new Input();
+const preview = new Preview(previewCanvas);
 
 const world = new World(PRESETS[0]);
 
@@ -28,9 +32,10 @@ const IDLE = { axis: () => ({ x: 0, y: 0 }), justPressed: () => false, endFrame:
  * 即時回饋是這個專案的核心賭注：把積木從迴圈外拖到迴圈內，畫面上的彈幕
  * 當場變形 —— 「假設 → 驗證」的迴路壓縮到一次拖曳，學生才會願意亂試。
  */
-const editor = new Editor(editorRoot, () => {
+const editor = new Editor(blocklyRoot, () => {
   const script = editor.read();
   world.runner.reset(script);
+  preview.setScript(script);
   hud.setScript(script, editor.used(), editor.used() > editor.capacity());
 });
 
@@ -53,8 +58,11 @@ function resize(): void {
   dpr = Math.min(window.devicePixelRatio || 1, 2);
   renderer.resize(viewW, viewH, dpr);
   world.setViewport(viewW, viewH);
-  // 收合時 Blockly 容器是 display:none，量測會得到 0，跳過即可
-  if (splitter.width > 0) editor.resize();
+  // 收合時容器是 display:none，量測會得到 0，跳過即可
+  if (splitter.width > 0) {
+    editor.resize();
+    preview.resize();
+  }
 }
 window.addEventListener("resize", resize);
 resize();
@@ -94,9 +102,14 @@ function frame(now: number): void {
     }
   }
 
+  // 預覽不受暫停影響 —— 暫停時正是最需要它的時候：學生停下來想
+  // 「這塊插哪裡」，預覽就在旁邊即時演示結果
+  preview.step(dt);
+  preview.draw();
+
   renderer.draw(world, viewW, viewH, dpr);
   // 暫停時傳 dt=0 凍結餘輝 —— 空白鍵就成了「定格檢視腳本跑到哪」的工具
-  editor.updateHeat(world.runner.drainTrace(), paused ? 0 : dt);
+  editor.updateHeat(world.runner.drainTrace(), paused ? 0 : dt, world.runner.cycles);
   hud.update(world, fps, paused);
   input.endFrame();
 }

@@ -49,6 +49,7 @@ function frame(now: number): void {
 
   if (input.justPressed("Space")) paused = !paused;
   if (input.justPressed("KeyR")) world.reset(PRESETS[presetIndex]);
+  if (input.justPressed("KeyH")) hud.cycleDecay();
   for (let i = 0; i < PRESETS.length; i++) {
     if (input.justPressed(`Digit${i + 1}`)) {
       presetIndex = i;

@@ -11,16 +11,22 @@ import type { World } from "../game/world";
  */
 
 /**
- * 餘輝衰減時間（秒）。積木被執行時熱度衝到 1，然後在這段時間內退回 0。
+ * 餘輝衰減時間（秒）的候選值，用 H 鍵即時切換。
  *
  * 為什麼需要餘輝：一塊積木只佔 4ms，而畫面每 16.7ms 才畫一次 —— 直接畫
- * 「當前積木」等於每幀隨機抽一塊來亮，中間跑過的三塊完全看不見，看起來
- * 就是亂閃。改成熱度衰減後，一整幀跑過的積木會全部亮起來並慢慢退色，
+ * 「當前積木」等於每幀隨機抽一塊來亮，中間跑過的五塊完全看不見，看起來
+ * 就是亂閃。改成熱度衰減後，一整幀跑過的積木會全部亮起來並逐漸退色，
  * 迴圈就變成一道**看得見的行進波**。
  *
+ * 怎麼選值：散彈手一輪 418ms＝執行 83ms＋冷卻 350ms。衰減若比整個週期還長
+ * （例如 0.45），畫面永遠不會全暗，看起來像一直亮著的糊團而非脈動；
+ * 0.2 秒剛好涵蓋整段執行，又能在下一輪開始前退乾淨，留出黑暗間隙 ——
+ * 於是脈衝的節奏就是攻擊週期本身。
+ *
  * 這個值只影響顯示，完全不動遊戲速度 —— 可讀性與遊戲性不必互相犧牲。
+ * 手感定案後可以把切換鍵拿掉，只留選定的常數。
  */
-const HEAT_DECAY = 0.45;
+const HEAT_DECAY_STEPS = [0.12, 0.2, 0.3, 0.45];
 
 export class Hud {
   private stats: HTMLElement;
@@ -30,6 +36,7 @@ export class Hud {
   private progressBar: HTMLElement;
   private hpBar: HTMLElement;
   private banner: HTMLElement;
+  private help: HTMLElement;
 
   private lineEls = new Map<string, HTMLElement>();
   private countEls = new Map<string, HTMLElement>();
@@ -41,6 +48,7 @@ export class Hud {
   private shown = new Map<string, number>();
   private lastCycle = -1;
   private headId: string | null = null;
+  private decayIndex = 1;
 
   constructor(root: HTMLElement) {
     root.innerHTML = `
@@ -53,7 +61,7 @@ export class Hud {
       </div>
       <div class="hud-hp"><i></i></div>
       <div class="hud-banner"></div>
-      <div class="hud-help">WASD／方向鍵 移動　·　1-4 切換腳本　·　空白 暫停　·　R 重來</div>
+      <div class="hud-help"></div>
     `;
     this.stats = root.querySelector(".hud-stats")!;
     this.scriptName = root.querySelector(".hud-script-name")!;
@@ -62,6 +70,20 @@ export class Hud {
     this.progressBar = root.querySelector(".hud-progress i")!;
     this.hpBar = root.querySelector(".hud-hp i")!;
     this.banner = root.querySelector(".hud-banner")!;
+    this.help = root.querySelector(".hud-help")!;
+    this.renderHelp();
+  }
+
+  /** 切換餘輝衰減速度。手感是主觀的，與其來回猜，不如讓人當場挑 */
+  cycleDecay(): void {
+    this.decayIndex = (this.decayIndex + 1) % HEAT_DECAY_STEPS.length;
+    this.renderHelp();
+  }
+
+  private renderHelp(): void {
+    this.help.textContent =
+      `WASD／方向鍵 移動　·　1-4 切換腳本　·　空白 暫停　·　R 重來　·　` +
+      `H 餘輝 ${HEAT_DECAY_STEPS[this.decayIndex].toFixed(2)}s`;
   }
 
   setScript(script: Script): void {
@@ -137,7 +159,7 @@ export class Hud {
     }
     if (trace.length > 0) this.headId = trace[trace.length - 1];
 
-    const fade = dt / HEAT_DECAY;
+    const fade = dt / HEAT_DECAY_STEPS[this.decayIndex];
     for (const [id, el] of this.lineEls) {
       let h = this.heat.get(id) ?? 0;
       if (h > 0 && fade > 0) {

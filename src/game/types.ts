@@ -32,4 +32,27 @@ export interface Bullet {
   /** 發射當下的蓄力倍率。傷害已經算進去了，這裡留著是為了畫面表現 */
   charge: number;
   life: number;
+  homing: boolean;
+  explode: boolean;
+}
+
+/** 敵人掉落的經驗球 */
+export interface Gem {
+  x: number;
+  y: number;
+  value: number;
+}
+
+/**
+ * 升級卡累積出來的角色屬性。全部是倍率，基準 1。
+ *
+ * 這些數值**不進腳本**（見 docs/DECISIONS.md §7）：腳本區只放有控制流的
+ * 真積木，學生看腳本時每一塊都跟程式邏輯有關，認知不被稀釋。
+ */
+export interface Stats {
+  damage: number;
+  moveSpeed: number;
+  pickup: number;
+  /** 攻擊週期冷卻的倍率，越小越快 */
+  cooldown: number;
 }

@@ -288,3 +288,132 @@ html, body {
   opacity: 0.85;
   pointer-events: none;
 }
+
+/* 經驗條放在血條上方，兩條一起構成「生存 vs 成長」的儀表 */
+.hud-xp {
+  position: absolute;
+  left: 50%;
+  bottom: 60px;
+  width: 280px;
+  height: 6px;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}
+
+.hud-xp i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #7dffb0, #5ce1ff);
+  border-radius: 3px;
+  transition: width 90ms linear;
+}
+
+.hud-xp span {
+  position: absolute;
+  right: 0;
+  bottom: 10px;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+/* 升等三選一。蓋住戰場但不蓋住積木區 —— 選完卡就要開始拖積木，
+   兩件事之間不該還要多按一次什麼 */
+#levelup {
+  position: fixed;
+  left: var(--editor-w);
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  background: rgba(8, 12, 20, 0.82);
+  backdrop-filter: blur(3px);
+}
+
+#levelup.hidden {
+  display: none;
+}
+
+.levelup-box {
+  width: min(760px, 92%);
+}
+
+.levelup-title {
+  margin-bottom: 14px;
+  font-size: 20px;
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: 0.06em;
+}
+
+.levelup-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.levelup-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 16px 16px;
+  text-align: left;
+  color: var(--fg);
+  background: #131c2b;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 90ms, border-color 90ms;
+}
+
+.levelup-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--accent);
+}
+
+/* 積木卡用金色標示，跟稀有積木的顏色一致 —— 學生一眼看得出
+   「這張會給我新積木」，那是需要動腦插進腳本的那種 */
+.levelup-card.block {
+  border-color: rgba(255, 179, 0, 0.5);
+  background: linear-gradient(180deg, #221c10, #131c2b 60%);
+}
+
+.levelup-key {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.levelup-kind {
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.levelup-card.block .levelup-kind {
+  color: #ffb300;
+}
+
+.levelup-name {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.levelup-desc {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #9fb0c8;
+}
+
+.levelup-hint {
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--dim);
+  text-align: center;
+}

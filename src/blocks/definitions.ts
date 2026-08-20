@@ -15,6 +15,8 @@ import { REPEAT_LIMIT } from "../config";
 const CONTROL = "#FFAB19";
 const ACTION = "#4C97FF";
 const STATE = "#9966FF";
+/** 稀有積木用金色，跟一般積木一眼分得開 —— 它們是升級卡發的，數量有限 */
+const RARE = "#FFB300";
 
 export const BLOCK_DEFS = [
   {
@@ -124,5 +126,22 @@ export const BLOCK_DEFS = [
     nextStatement: null,
     colour: STATE,
     tooltip: "子彈打到敵人後還能穿過幾個。穿透越高，角色移動越慢",
+  },
+  {
+    // 以下為稀有積木：不在起始工具箱裡，只能從升級卡取得，且拿幾個放幾個
+    type: "ls_homing",
+    message0: "子彈改為追蹤",
+    previousStatement: null,
+    nextStatement: null,
+    colour: RARE,
+    tooltip: "稀有積木。之後發射的子彈會轉向最近的敵人",
+  },
+  {
+    type: "ls_explode",
+    message0: "子彈改為爆裂",
+    previousStatement: null,
+    nextStatement: null,
+    colour: RARE,
+    tooltip: "稀有積木。之後發射的子彈命中時會炸開，波及周圍敵人",
   },
 ];

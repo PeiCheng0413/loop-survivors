@@ -28,6 +28,8 @@ function label(node: Node): string {
     case "setSpeed": return `子彈速度設為 ${node.value}`;
     case "setSize": return `子彈大小設為 ${node.value}`;
     case "setPierce": return `子彈穿透設為 ${node.value}`;
+    case "setHoming": return "子彈改為追蹤";
+    case "setExplode": return "子彈改為爆裂";
   }
 }
 

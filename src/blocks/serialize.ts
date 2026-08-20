@@ -45,6 +45,10 @@ function toNode(b: Blockly.Block): Node | null {
       return { kind: "setSize", id: b.id, value: num(b, "VALUE") };
     case "ls_set_pierce":
       return { kind: "setPierce", id: b.id, value: num(b, "VALUE") };
+    case "ls_homing":
+      return { kind: "setHoming", id: b.id };
+    case "ls_explode":
+      return { kind: "setExplode", id: b.id };
     default:
       return null;
   }

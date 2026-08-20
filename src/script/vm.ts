@@ -17,6 +17,8 @@ export interface BulletOpts {
   speed: number;
   size: number;
   pierce: number;
+  homing: boolean;
+  explode: boolean;
 }
 
 /** 腳本的執行狀態。發射參數是狀態積木的作用對象 */
@@ -26,6 +28,8 @@ export interface VMState {
   speed: number;
   size: number;
   pierce: number;
+  homing: boolean;
+  explode: boolean;
   /** 目前執行到哪一塊積木 */
   currentId: string | null;
   /**
@@ -47,7 +51,13 @@ function mark(st: VMState, id: string): void {
 }
 
 function freshOpts(): BulletOpts {
-  return { speed: BULLET.speed, size: BULLET.size, pierce: BULLET.pierce };
+  return {
+    speed: BULLET.speed,
+    size: BULLET.size,
+    pierce: BULLET.pierce,
+    homing: false,
+    explode: false,
+  };
 }
 
 /**
@@ -85,7 +95,13 @@ export function* exec(
         break;
 
       case "fire":
-        host.fire(st.dir, { speed: st.speed, size: st.size, pierce: st.pierce });
+        host.fire(st.dir, {
+          speed: st.speed,
+          size: st.size,
+          pierce: st.pierce,
+          homing: st.homing,
+          explode: st.explode,
+        });
         yield BLOCK_COST;
         break;
 
@@ -111,6 +127,16 @@ export function* exec(
 
       case "setPierce":
         st.pierce = node.value;
+        yield BLOCK_COST;
+        break;
+
+      case "setHoming":
+        st.homing = true;
+        yield BLOCK_COST;
+        break;
+
+      case "setExplode":
+        st.explode = true;
         yield BLOCK_COST;
         break;
     }
@@ -169,6 +195,11 @@ export class ScriptRunner {
     this.state.currentId = null;
     this.state.trace.length = 0;
     this.sinceFire = 0;
+  }
+
+  /** 攻速升級卡會改動這個值 */
+  setCooldown(seconds: number): void {
+    this.cycleCooldown = seconds;
   }
 
   /** 讀出並歸零蓄力計時。發射子彈時呼叫一次 */

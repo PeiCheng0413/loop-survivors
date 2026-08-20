@@ -10,6 +10,8 @@ export class Hud {
   private meta: HTMLElement;
   private progressBar: HTMLElement;
   private hpBar: HTMLElement;
+  private xpBar: HTMLElement;
+  private xpLabel: HTMLElement;
   private banner: HTMLElement;
 
   constructor(root: HTMLElement) {
@@ -17,6 +19,7 @@ export class Hud {
       <div class="hud-stats"></div>
       <div class="hud-meta"></div>
       <div class="hud-hp"><i></i></div>
+      <div class="hud-xp"><i></i><span></span></div>
       <div class="hud-progress"><i></i></div>
       <div class="hud-banner"></div>
       <div class="hud-help">WASD／方向鍵 移動　·　1-4 換角色　·　空白 暫停並試射預覽　·　R 重來</div>
@@ -25,6 +28,8 @@ export class Hud {
     this.meta = root.querySelector(".hud-meta")!;
     this.progressBar = root.querySelector(".hud-progress i")!;
     this.hpBar = root.querySelector(".hud-hp i")!;
+    this.xpBar = root.querySelector(".hud-xp i")!;
+    this.xpLabel = root.querySelector(".hud-xp span")!;
     this.banner = root.querySelector(".hud-banner")!;
   }
 
@@ -65,6 +70,9 @@ export class Hud {
 
     this.progressBar.style.width = `${world.runner.progress * 100}%`;
     this.hpBar.style.width = `${(world.player.hp / world.player.maxHp) * 100}%`;
+    this.xpBar.style.width = `${(world.xp / world.xpNeeded) * 100}%`;
+    const xpText = `Lv.${world.level}　${world.xp}/${world.xpNeeded}`;
+    if (this.xpLabel.textContent !== xpText) this.xpLabel.textContent = xpText;
 
     const msg = world.dead ? "陣亡　按 R 重來" : paused ? "暫停" : "";
     if (this.banner.textContent !== msg) this.banner.textContent = msg;

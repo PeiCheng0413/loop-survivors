@@ -12,6 +12,7 @@ const COLOR = {
   enemy: "#ff4d5a",
   enemyHit: "#ffffff",
   bullet: "#5ce1ff",
+  gem: "#7dffb0",
 };
 
 const GRID = 80;
@@ -55,6 +56,7 @@ export class Renderer {
     ctx.translate(-camX, -camY);
 
     this.drawGrid(camX, camY, w, h);
+    this.drawGems(world);
     this.drawEnemies(world);
     this.drawBullets(world);
     this.drawPlayer(world);
@@ -80,6 +82,21 @@ export class Renderer {
       ctx.moveTo(camX, y);
       ctx.lineTo(camX + w, y);
       ctx.stroke();
+    }
+  }
+
+  /** 經驗球畫成菱形，跟圓形的敵人與子彈一眼分得開 */
+  private drawGems(world: World): void {
+    const ctx = this.ctx;
+    ctx.fillStyle = COLOR.gem;
+    for (const g of world.gems) {
+      ctx.beginPath();
+      ctx.moveTo(g.x, g.y - 6);
+      ctx.lineTo(g.x + 4.5, g.y);
+      ctx.lineTo(g.x, g.y + 6);
+      ctx.lineTo(g.x - 4.5, g.y);
+      ctx.closePath();
+      ctx.fill();
     }
   }
 

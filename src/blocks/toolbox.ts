@@ -9,9 +9,13 @@ import type * as Blockly from "blockly/core";
  *
  * M2 的稀有積木會用 updateToolbox() 動態加進來。
  */
-export const TOOLBOX: Blockly.utils.toolbox.ToolboxDefinition = {
-  kind: "flyoutToolbox",
-  contents: [
+/** 稀有積木的顯示名稱，用來在工具箱裡標出數量 */
+const RARE_LABEL: Record<string, string> = {
+  ls_homing: "追蹤彈",
+  ls_explode: "爆裂彈",
+};
+
+const BASE_CONTENTS: Blockly.utils.toolbox.ToolboxItemInfo[] = [
     { kind: "label", text: "控制" },
     { kind: "block", type: "ls_repeat" },
     { kind: "block", type: "ls_wait" },
@@ -25,5 +29,26 @@ export const TOOLBOX: Blockly.utils.toolbox.ToolboxDefinition = {
     { kind: "block", type: "ls_set_speed" },
     { kind: "block", type: "ls_set_size" },
     { kind: "block", type: "ls_set_pierce" },
-  ],
-};
+];
+
+/**
+ * 依已解鎖的稀有積木生成工具箱。
+ *
+ * 基本八塊固定在前，稀有積木解鎖後才出現在最下方 ——
+ * 學生打開工具箱就看得到自己這局拿到了什麼。
+ */
+export function buildToolbox(rare: Map<string, number>): Blockly.utils.toolbox.ToolboxDefinition {
+  const contents: Blockly.utils.toolbox.ToolboxItemInfo[] = [...BASE_CONTENTS];
+  if (rare.size > 0) {
+    contents.push({ kind: "sep", gap: "16" }, { kind: "label", text: "稀有積木（限量）" });
+    for (const [type, count] of rare) {
+      contents.push({ kind: "label", text: `　${RARE_LABEL[type] ?? type} ×${count}` });
+      contents.push({ kind: "block", type });
+    }
+  }
+  return { kind: "flyoutToolbox", contents };
+}
+
+
+/** 起始工具箱：只有基本八塊 */
+export const TOOLBOX = buildToolbox(new Map());

@@ -25,7 +25,11 @@ export type Node =
   /** 子彈大小設為 (value) */
   | { kind: "setSize"; id: string; value: number }
   /** 子彈穿透設為 (value) */
-  | { kind: "setPierce"; id: string; value: number };
+  | { kind: "setPierce"; id: string; value: number }
+  /** 子彈改為追蹤 —— 稀有積木，只能從升級卡取得 */
+  | { kind: "setHoming"; id: string }
+  /** 子彈改為爆裂 —— 稀有積木，只能從升級卡取得 */
+  | { kind: "setExplode"; id: string };
 
 export interface Script {
   name: string;

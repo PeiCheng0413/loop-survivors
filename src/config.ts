@@ -117,3 +117,33 @@ export const HEAT_DECAY = 0.2;
 
 /** 積木編輯器面板寬度（px） */
 export const EDITOR_WIDTH = 400;
+
+/**
+ * 經驗球：敵人死亡後掉落，玩家要走過去撿。
+ *
+ * 為什麼不自動入袋：撿球讓「走位」從純粹的閃避變成資源獲取手段 ——
+ * 玩家必須在「安全地待著」與「衝進敵群撿球」之間做取捨，
+ * 而這正是走位有樂趣的來源。
+ */
+export const GEM = {
+  radius: 5,
+  /** 磁吸範圍。進入後會自己飛過來，避免玩家為了一顆球做像素級走位 */
+  magnetRadius: 74,
+  magnetSpeed: 460,
+  value: 1,
+};
+
+/** 升級所需經驗：level 級升到下一級要幾顆球 */
+export function xpForLevel(level: number): number {
+  return 4 + level * 3;
+}
+
+/** 追蹤彈的最大轉向速率（度／秒）。太高會變成無腦制導，失去佈陣的意義 */
+export const HOMING_TURN_RATE = 260;
+
+/** 爆裂彈的範圍與傷害比例 */
+export const EXPLODE = {
+  radius: 62,
+  /** 相對於子彈本身傷害的比例 */
+  damageRatio: 0.6,
+};

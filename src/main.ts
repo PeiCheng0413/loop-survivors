@@ -7,6 +7,8 @@ import { Hud } from "./render/hud";
 import { Renderer } from "./render/renderer";
 import { Splitter } from "./splitter";
 import { Preview } from "./preview";
+import { LevelUp } from "./levelup";
+import { drawCards, type CardContext } from "./cards";
 import { PRESETS } from "./script/presets";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
@@ -15,6 +17,7 @@ const editorRoot = document.querySelector<HTMLElement>("#editor")!;
 const blocklyRoot = document.querySelector<HTMLElement>("#blockly")!;
 const previewCanvas = document.querySelector<HTMLCanvasElement>("#preview-canvas")!;
 const previewPanel = document.querySelector<HTMLElement>("#preview")!;
+const levelUpRoot = document.querySelector<HTMLElement>("#levelup")!;
 const splitterRoot = document.querySelector<HTMLElement>("#splitter")!;
 
 /**
@@ -60,6 +63,19 @@ function loadPreset(i: number): void {
   editor.load(PRESETS[i]); // 觸發 onChange，腳本會自動套用
 }
 loadPreset(0);
+
+const cardContext: CardContext = { world, editor };
+
+/**
+ * 選完卡不自動繼續 —— 學生需要時間把新積木插進腳本。
+ * 那個「該放外層還是內層」的思考才是升級的教學意義（DECISIONS.md §2）。
+ */
+const levelUp = new LevelUp(levelUpRoot, (card) => {
+  card.apply(cardContext);
+  world.pendingLevelUps--;
+  // 積木卡會改變工具箱與容量，指標要重算
+  hud.setScript(editor.read(), editor.used(), world.mobilityMultiplier);
+});
 
 // 分隔線負責決定編輯器寬度；每次變動都要讓畫布與 Blockly 一起重新量測
 const splitter = new Splitter(splitterRoot, editorRoot, () => resize());
@@ -109,13 +125,26 @@ function frame(now: number): void {
   if (dt > 0.25) dt = 0.25;
   fps += (1 / Math.max(dt, 1e-6) - fps) * 0.1;
 
+  // 升等時強制暫停並跳卡片。多次升等會排隊，一張一張選
+  if (world.pendingLevelUps > 0 && !levelUp.isOpen) {
+    setPaused(true);
+    levelUp.open(drawCards(cardContext), world.level);
+  }
+
   // 在積木欄位裡打字時，按鍵不該被當成遊戲操作
   const typing = document.activeElement?.tagName === "INPUT";
   if (!typing) {
-    if (input.justPressed("Space")) setPaused(!paused);
-    if (input.justPressed("KeyR")) world.reset(editor.read());
-    for (let i = 0; i < PRESETS.length; i++) {
-      if (input.justPressed(`Digit${i + 1}`)) loadPreset(i);
+    if (levelUp.isOpen) {
+      // 卡片開著時數字鍵是選卡，不是換角色
+      for (let i = 0; i < 3; i++) {
+        if (input.justPressed(`Digit${i + 1}`)) levelUp.pick(i);
+      }
+    } else {
+      if (input.justPressed("Space")) setPaused(!paused);
+      if (input.justPressed("KeyR")) world.reset(editor.read());
+      for (let i = 0; i < PRESETS.length; i++) {
+        if (input.justPressed(`Digit${i + 1}`)) loadPreset(i);
+      }
     }
   }
 

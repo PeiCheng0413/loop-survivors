@@ -1,9 +1,12 @@
-import { BULLET, CHARGE, CYCLE_COOLDOWN, ENEMY, MAX_BULLETS, MOBILITY, PLAYER, SPAWN } from "../config";
+import {
+  BULLET, CHARGE, CYCLE_COOLDOWN, ENEMY, EXPLODE, GEM, HOMING_TURN_RATE,
+  MAX_BULLETS, MOBILITY, PLAYER, SPAWN, xpForLevel,
+} from "../config";
 import { scriptSpec, type Script } from "../script/ast";
 import type { AimTarget } from "../script/ast";
 import { ScriptRunner, type BulletOpts, type ScriptHost } from "../script/vm";
 import { EnemyGrid } from "./collision";
-import type { Bullet, Enemy, Player } from "./types";
+import type { Bullet, Enemy, Gem, Player, Stats } from "./types";
 import type { Input } from "./input";
 
 const DEG = Math.PI / 180;
@@ -18,11 +21,18 @@ export class World implements ScriptHost {
   player: Player;
   enemies: Enemy[] = [];
   bullets: Bullet[] = [];
+  gems: Gem[] = [];
   runner: ScriptRunner;
 
   time = 0;
   kills = 0;
   dead = false;
+
+  level = 1;
+  xp = 0;
+  /** 還沒被玩家處理掉的升級次數。主迴圈看到 > 0 就暫停並跳卡片 */
+  pendingLevelUps = 0;
+  stats: Stats = { damage: 1, moveSpeed: 1, pickup: 1, cooldown: 1 };
 
   /** 視窗尺寸，決定敵人要在多遠的畫面外生成 */
   private viewW = 1280;
@@ -52,9 +62,19 @@ export class World implements ScriptHost {
     this.mobility = computeMobility(script);
   }
 
-  /** 目前的移動速度倍率，給 HUD 顯示 */
+  /** 目前的移動速度倍率（火力換機動 × 升級卡加成），給 HUD 顯示 */
   get mobilityMultiplier(): number {
-    return this.mobility;
+    return this.mobility * this.stats.moveSpeed;
+  }
+
+  /** 屬性變動後要把冷卻同步進 runner */
+  refreshCooldown(): void {
+    this.runner.setCooldown(CYCLE_COOLDOWN * this.stats.cooldown);
+  }
+
+  /** 升到下一級還需要多少經驗 */
+  get xpNeeded(): number {
+    return xpForLevel(this.level);
   }
 
   setViewport(w: number, h: number): void {
@@ -69,6 +89,11 @@ export class World implements ScriptHost {
     this.player.invuln = 0;
     this.enemies.length = 0;
     this.bullets.length = 0;
+    this.gems.length = 0;
+    this.level = 1;
+    this.xp = 0;
+    this.pendingLevelUps = 0;
+    this.stats = { damage: 1, moveSpeed: 1, pickup: 1, cooldown: 1 };
     this.time = 0;
     this.kills = 0;
     this.dead = false;
@@ -91,10 +116,12 @@ export class World implements ScriptHost {
       vx: Math.cos(a) * opts.speed,
       vy: Math.sin(a) * opts.speed,
       r: opts.size,
-      damage: BULLET.damage * charge,
+      damage: BULLET.damage * charge * this.stats.damage,
       pierce: opts.pierce,
       life: BULLET.life,
       charge,
+      homing: opts.homing,
+      explode: opts.explode,
     });
   }
 
@@ -139,13 +166,14 @@ export class World implements ScriptHost {
     this.runner.update(dt); // 腳本推進 —— 子彈就是在這裡生出來的
     this.moveBullets(dt);
     this.hitEnemies();
+    this.collectGems(dt);
     this.hurtPlayer(dt);
   }
 
   private movePlayer(dt: number, input: Input): void {
     const a = input.axis();
     if (a.x !== 0 || a.y !== 0) {
-      const speed = PLAYER.speed * this.mobility;
+      const speed = PLAYER.speed * this.mobility * this.stats.moveSpeed;
       this.player.x += a.x * speed * dt;
       this.player.y += a.y * speed * dt;
       this.player.moveDir = Math.atan2(a.y, a.x) / DEG;
@@ -205,10 +233,92 @@ export class World implements ScriptHost {
   private moveBullets(dt: number): void {
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const b = this.bullets[i];
+      if (b.homing) this.steer(b, dt);
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.life -= dt;
       if (b.life <= 0) this.swapRemove(this.bullets, i);
+    }
+  }
+
+  /**
+   * 追蹤彈轉向最近的敵人。
+   *
+   * 限制轉向速率而非直接指向目標：無腦制導會讓「方向旋轉」「面向敵人」
+   * 這些積木全部失去意義，佈陣的樂趣也一起消失。有轉向上限的話，
+   * 追蹤是「補正」而不是「代替瞄準」。
+   */
+  private steer(b: Bullet, dt: number): void {
+    const target = this.nearestEnemyTo(b.x, b.y);
+    if (!target) return;
+    const desired = Math.atan2(target.y - b.y, target.x - b.x);
+    const current = Math.atan2(b.vy, b.vx);
+    let delta = desired - current;
+    while (delta > Math.PI) delta -= Math.PI * 2;
+    while (delta < -Math.PI) delta += Math.PI * 2;
+
+    const maxTurn = HOMING_TURN_RATE * DEG * dt;
+    const turn = Math.max(-maxTurn, Math.min(maxTurn, delta));
+    const speed = Math.hypot(b.vx, b.vy);
+    const next = current + turn;
+    b.vx = Math.cos(next) * speed;
+    b.vy = Math.sin(next) * speed;
+  }
+
+  private nearestEnemyTo(x: number, y: number): Enemy | null {
+    let best: Enemy | null = null;
+    let bestD = Infinity;
+    this.grid.forEachNear(x, y, 320, (i) => {
+      const e = this.enemies[i];
+      if (!e) return;
+      const d = (e.x - x) ** 2 + (e.y - y) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        best = e;
+      }
+    });
+    return best;
+  }
+
+  /** 爆裂彈命中時波及周圍敵人 */
+  private explodeAt(x: number, y: number, damage: number): void {
+    const rr = EXPLODE.radius ** 2;
+    this.grid.forEachNear(x, y, EXPLODE.radius, (i) => {
+      const e = this.enemies[i];
+      if (!e || e.hp <= 0) return;
+      if ((e.x - x) ** 2 + (e.y - y) ** 2 > rr) return;
+      e.hp -= damage * EXPLODE.damageRatio;
+      e.hit = 0.08;
+    });
+  }
+
+  /**
+   * 撿經驗球。進入磁吸範圍就會自己飛過來 ——
+   * 玩家該煩惱的是「要不要衝進敵群」，不是像素級的對準。
+   */
+  private collectGems(dt: number): void {
+    const p = this.player;
+    const magnet = GEM.magnetRadius * this.stats.pickup;
+    for (let i = this.gems.length - 1; i >= 0; i--) {
+      const g = this.gems[i];
+      const dx = p.x - g.x;
+      const dy = p.y - g.y;
+      const d = Math.hypot(dx, dy);
+      if (d < magnet) {
+        // 越靠近吸得越快，看起來像被吞進去而不是等速滑行
+        const pull = GEM.magnetSpeed * (1 - d / magnet) * dt + 60 * dt;
+        g.x += (dx / d) * pull;
+        g.y += (dy / d) * pull;
+      }
+      if (d < p.r + GEM.radius) {
+        this.xp += g.value;
+        this.swapRemove(this.gems, i);
+        while (this.xp >= this.xpNeeded) {
+          this.xp -= this.xpNeeded;
+          this.level++;
+          this.pendingLevelUps++;
+        }
+      }
     }
   }
 
@@ -225,6 +335,7 @@ export class World implements ScriptHost {
         if ((b.x - e.x) ** 2 + (b.y - e.y) ** 2 > rr) return;
         e.hp -= b.damage;
         e.hit = 0.08;
+        if (b.explode) this.explodeAt(b.x, b.y, b.damage);
         if (b.pierce > 0) b.pierce -= 1;
         else consumed = true;
       });
@@ -232,6 +343,8 @@ export class World implements ScriptHost {
     }
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       if (this.enemies[i].hp <= 0) {
+        const e = this.enemies[i];
+        this.gems.push({ x: e.x, y: e.y, value: GEM.value });
         this.swapRemove(this.enemies, i);
         this.kills++;
       }

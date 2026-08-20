@@ -1,7 +1,7 @@
 import * as Blockly from "blockly/core";
 import { HEAT_DECAY } from "./config";
 import { THEME } from "./blocks/defs";
-import { TOOLBOX } from "./blocks/toolbox";
+import { buildToolbox, TOOLBOX } from "./blocks/toolbox";
 import { workspaceToScript } from "./blocks/serialize";
 import { hintFor, HINT_SOURCE } from "./blocks/hints";
 import { scriptToState } from "./blocks/state";
@@ -26,6 +26,8 @@ export class Editor {
   private shown = new Map<string, number>();
   private badges = new Map<string, SVGTextElement>();
   private lastCycle = -1;
+  /** 這一局已解鎖的稀有積木與數量 */
+  private rare = new Map<string, number>();
 
   constructor(container: HTMLElement, onChange: () => void) {
     this.workspace = Blockly.inject(container, {
@@ -57,7 +59,10 @@ export class Editor {
     // 注意 Blockly 數的是工作區裡所有積木，包含拖出來沒接上的散塊 ——
     // 這是刻意接受的行為（見 docs/DECISIONS.md 未解風險 2）。
     this.workspace.options.maxBlocks = script.capacity + 1;
-    this.current = script;
+    this.current = { ...script };
+    this.rare.clear();
+    this.workspace.options.maxInstances = {};
+    this.workspace.updateToolbox(TOOLBOX);
     this.heat.clear();
     this.counts.clear();
     this.shown.clear();
@@ -107,6 +112,32 @@ export class Editor {
 
   capacity(): number {
     return this.current.capacity;
+  }
+
+  /** 容量升級卡。maxBlocks 連根積木一起數，所以要 +1 */
+  addCapacity(n: number): void {
+    this.current.capacity += n;
+    this.workspace.options.maxBlocks = this.current.capacity + 1;
+  }
+
+  rareCount(type: string): number {
+    return this.rare.get(type) ?? 0;
+  }
+
+  /**
+   * 解鎖一塊稀有積木。
+   *
+   * maxInstances 是 Blockly 原生的每型別上限：達到上限後不但拖不出新的，
+   * isDuplicatable() 也會自動回傳 false —— 連「複製貼上繞過限量」都不必自己擋。
+   */
+  unlockBlock(type: string): void {
+    const next = this.rareCount(type) + 1;
+    this.rare.set(type, next);
+    this.workspace.options.maxInstances = {
+      ...this.workspace.options.maxInstances,
+      [type]: next,
+    };
+    this.workspace.updateToolbox(buildToolbox(this.rare));
   }
 
   resize(): void {

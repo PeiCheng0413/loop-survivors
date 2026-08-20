@@ -16,6 +16,7 @@ const DRAG_THRESHOLD = 3;
  * 寬度存進 localStorage：老師調好一次之後，每次開課不必重調。
  */
 export class Splitter {
+  private el: HTMLElement;
   private editorEl: HTMLElement;
   private button: HTMLElement;
   private onChange: () => void;
@@ -24,6 +25,7 @@ export class Splitter {
   private pending = false;
 
   constructor(el: HTMLElement, editor: HTMLElement, onChange: () => void) {
+    this.el = el;
     this.editorEl = editor;
     this.onChange = onChange;
 
@@ -100,6 +102,8 @@ export class Splitter {
     // 收合時整個藏起來，而不是設成 0 寬 —— Blockly 在零尺寸容器裡
     // 會持續嘗試量測與重繪，白白吃效能
     this.editorEl.style.display = this.collapsed ? "none" : "";
+    // 收合後分隔線要靠齊左緣並加寬，否則把手有一半在畫面外、幾乎點不到
+    this.el.classList.toggle("collapsed", this.collapsed);
     this.button.textContent = this.collapsed ? "›" : "‹";
     this.button.title = this.collapsed ? "展開積木編輯器" : "收合積木編輯器";
 

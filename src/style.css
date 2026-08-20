@@ -67,28 +67,45 @@ html, body {
 
 /* 可拖曳的分隔線。拖曳＝調寬度，單擊＝收合／展開，雙擊＝還原預設。
    把三種操作疊在同一個元素上，是為了不在畫面上多放兩顆按鈕 ——
-   這是給學生看的畫面，控制項越少越好。 */
+   這是給學生看的畫面，控制項越少越好。
+
+   寬度刻意做到 20px：分隔線同時是按鈕的**點擊區**（按鈕本身
+   pointer-events: none，好讓拖曳與點擊由這裡統一判定），所以它必須
+   完整覆蓋按鈕，否則按鈕露出去的部分點下去會穿透，看得到卻按不到。 */
 #splitter {
   position: fixed;
   left: var(--editor-w);
   top: 0;
   bottom: 0;
-  width: 8px;
-  margin-left: -4px;
+  width: 20px;
+  margin-left: -10px;
   z-index: 20;
   cursor: col-resize;
   touch-action: none;
 }
 
+/* 收合後邊界在 x=0，若仍置中就有一半在畫面外，只剩幾像素可點。
+   這時改成靠齊左緣並加寬，整個把手都在畫面內。 */
+#splitter.collapsed {
+  left: 0;
+  margin-left: 0;
+  width: 30px;
+  cursor: pointer;
+}
+
 #splitter::before {
   content: "";
   position: absolute;
-  left: 3px;
+  left: 9px;
   top: 0;
   bottom: 0;
   width: 1px;
   background: var(--border);
   transition: background-color 120ms;
+}
+
+#splitter.collapsed::before {
+  display: none;
 }
 
 #splitter:hover::before,
@@ -99,27 +116,46 @@ html, body {
 
 .splitter-btn {
   position: absolute;
-  left: -6px;
+  left: 0;
   top: 50%;
   width: 20px;
-  height: 44px;
+  height: 64px;
   transform: translateY(-50%);
   display: grid;
   place-items: center;
   padding: 0;
-  font-size: 14px;
+  font-size: 18px;
+  line-height: 1;
   color: var(--dim);
   background: #141c2c;
   border: 1px solid var(--border);
   border-radius: 5px;
-  cursor: pointer;
-  /* 讓點擊事件交給父層的 splitter 統一處理，才能分辨拖曳與點擊 */
+  cursor: inherit;
+  /* 讓點擊事件交給父層的 splitter 統一處理，才能分辨拖曳與點擊。
+     代價是按鈕不可超出 splitter 的範圍，否則露出的部分會穿透。 */
   pointer-events: none;
+}
+
+/* 收合狀態下這是唯一的入口，做大、做亮，不必滑過去才看得到 */
+#splitter.collapsed .splitter-btn {
+  width: 30px;
+  height: 84px;
+  font-size: 22px;
+  color: var(--accent);
+  border-color: rgba(92, 225, 255, 0.45);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  background: #16202f;
 }
 
 #splitter:hover .splitter-btn {
   color: var(--fg);
   border-color: var(--accent);
+}
+
+#splitter.collapsed:hover .splitter-btn {
+  background: #1d2a3d;
+  color: #fff;
 }
 
 #game {

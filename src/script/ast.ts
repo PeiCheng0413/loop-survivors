@@ -74,3 +74,30 @@ export function countFires(nodes: Node[]): number {
   }
   return n;
 }
+
+/** 腳本中出現過的最高子彈規格。火力換機動的計算基礎 */
+export interface Spec {
+  speed: number;
+  size: number;
+  pierce: number;
+}
+
+/**
+ * 取腳本中設定過的最高規格。
+ *
+ * 取最高值而非實際發射時的值，是為了堵住「設高再設回來」的鑽漏洞空間，
+ * 同時讓規則可預測 —— 學生拖積木的當下就看得到移速變化，不必等到開火。
+ */
+export function scriptSpec(nodes: Node[], base: Spec): Spec {
+  const spec = { ...base };
+  const walk = (list: Node[]) => {
+    for (const node of list) {
+      if (node.kind === "setSpeed") spec.speed = Math.max(spec.speed, node.value);
+      else if (node.kind === "setSize") spec.size = Math.max(spec.size, node.value);
+      else if (node.kind === "setPierce") spec.pierce = Math.max(spec.pierce, node.value);
+      else if (node.kind === "repeat") walk(node.body);
+    }
+  };
+  walk(nodes);
+  return spec;
+}

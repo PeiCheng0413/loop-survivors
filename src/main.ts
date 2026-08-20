@@ -35,9 +35,9 @@ const IDLE = { axis: () => ({ x: 0, y: 0 }), justPressed: () => false, endFrame:
  */
 const editor = new Editor(blocklyRoot, () => {
   const script = editor.read();
-  world.runner.reset(script);
+  world.setScript(script);
   preview.setScript(script);
-  hud.setScript(script, editor.used(), editor.used() > editor.capacity());
+  hud.setScript(script, editor.used(), editor.used() > editor.capacity(), world.mobilityMultiplier);
 });
 
 function loadPreset(i: number): void {

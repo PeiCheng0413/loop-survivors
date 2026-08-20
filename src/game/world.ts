@@ -1,5 +1,5 @@
-import { BULLET, CYCLE_COOLDOWN, ENEMY, MAX_BULLETS, PLAYER, SPAWN } from "../config";
-import type { Script } from "../script/ast";
+import { BULLET, CHARGE, CYCLE_COOLDOWN, ENEMY, MAX_BULLETS, MOBILITY, PLAYER, SPAWN } from "../config";
+import { scriptSpec, type Script } from "../script/ast";
 import type { AimTarget } from "../script/ast";
 import { ScriptRunner, type BulletOpts, type ScriptHost } from "../script/vm";
 import { EnemyGrid } from "./collision";
@@ -29,6 +29,8 @@ export class World implements ScriptHost {
   private viewH = 720;
   private spawnAccum = 0;
   private grid = new EnemyGrid();
+  /** 由腳本規格換算出的移動速度倍率。火力換機動 */
+  private mobility = 1;
 
   constructor(script: Script) {
     this.player = {
@@ -41,6 +43,18 @@ export class World implements ScriptHost {
       invuln: 0,
     };
     this.runner = new ScriptRunner(script, this, CYCLE_COOLDOWN);
+    this.mobility = computeMobility(script);
+  }
+
+  /** 腳本一改就要重算機動性，讓學生拖積木的當下就看得到移速變化 */
+  setScript(script: Script): void {
+    this.runner.reset(script);
+    this.mobility = computeMobility(script);
+  }
+
+  /** 目前的移動速度倍率，給 HUD 顯示 */
+  get mobilityMultiplier(): number {
+    return this.mobility;
   }
 
   setViewport(w: number, h: number): void {
@@ -60,6 +74,7 @@ export class World implements ScriptHost {
     this.dead = false;
     this.spawnAccum = 0;
     this.runner.reset(script);
+    if (script) this.mobility = computeMobility(script);
   }
 
   // ---- ScriptHost ----------------------------------------------------
@@ -69,15 +84,17 @@ export class World implements ScriptHost {
     // 讓效能問題以「火力沒有變強」的形式呈現，而不是掉幀。
     if (this.bullets.length >= MAX_BULLETS) return;
     const a = dirDeg * DEG;
+    const charge = chargeMultiplier(this.runner.consumeCharge());
     this.bullets.push({
       x: this.player.x + Math.cos(a) * this.player.r,
       y: this.player.y + Math.sin(a) * this.player.r,
       vx: Math.cos(a) * opts.speed,
       vy: Math.sin(a) * opts.speed,
       r: opts.size,
-      damage: BULLET.damage,
+      damage: BULLET.damage * charge,
       pierce: opts.pierce,
       life: BULLET.life,
+      charge,
     });
   }
 
@@ -128,8 +145,9 @@ export class World implements ScriptHost {
   private movePlayer(dt: number, input: Input): void {
     const a = input.axis();
     if (a.x !== 0 || a.y !== 0) {
-      this.player.x += a.x * PLAYER.speed * dt;
-      this.player.y += a.y * PLAYER.speed * dt;
+      const speed = PLAYER.speed * this.mobility;
+      this.player.x += a.x * speed * dt;
+      this.player.y += a.y * speed * dt;
       this.player.moveDir = Math.atan2(a.y, a.x) / DEG;
     }
   }
@@ -245,4 +263,37 @@ export class World implements ScriptHost {
     const last = arr.pop()!;
     if (i < arr.length) arr[i] = last;
   }
+}
+
+/**
+ * 間隔換算成傷害倍率。連射趨近下限，等待滿 fullTime 達到上限。
+ *
+ * 這讓「等待」從純虧的積木變成真正的工具：少而強 vs 多而弱，兩種 build
+ * 的總輸出接近，靠覆蓋面與單體威力分化 —— 打成群小兵要爆發，打硬目標要精準。
+ */
+function chargeMultiplier(gap: number): number {
+  const t = Math.min(1, gap / CHARGE.fullTime);
+  return CHARGE.min + (CHARGE.max - CHARGE.min) * t;
+}
+
+/**
+ * 由腳本規格換算移動速度倍率。
+ *
+ * 負載為 0（全部維持預設規格）時倍率為 1。提高規格要用機動性支付，
+ * 降低規格則換到更快的走位 —— 後者是完全正當的另一種 build，不是懲罰。
+ */
+function computeMobility(script: Script): number {
+  const spec = scriptSpec(script.body, {
+    speed: BULLET.speed,
+    size: BULLET.size,
+    pierce: BULLET.pierce,
+  });
+
+  const load =
+    MOBILITY.speedWeight * ((spec.speed - BULLET.speed) / BULLET.speed) +
+    MOBILITY.sizeWeight * ((spec.size - BULLET.size) / BULLET.size) +
+    MOBILITY.pierceWeight * (spec.pierce - BULLET.pierce) / 2;
+
+  const rate = load >= 0 ? MOBILITY.penaltyPerLoad : MOBILITY.bonusPerLoad;
+  return Math.max(MOBILITY.minMultiplier, Math.min(MOBILITY.maxMultiplier, 1 - load * rate));
 }

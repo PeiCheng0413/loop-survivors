@@ -34,11 +34,14 @@ export class Hud {
    * 「3/12 格 → 每輪 8 發（展開寫需 16 格）」就是迴圈價值的量化 ——
    * 學生每拖一塊積木，這行數字就會動，容量的壓力因此是持續可見的。
    */
-  setScript(script: Script, used: number, overCapacity: boolean): void {
+  setScript(script: Script, used: number, overCapacity: boolean, mobility: number): void {
     const fires = countFires(script.body);
     const expanded = countExpanded(script.body);
+    // 移速跟著子彈規格連動，拖積木的當下就看得到代價
+    const move = Math.round(mobility * 100);
     this.meta.textContent =
-      `${script.name}　·　容量 ${used}/${script.capacity} 格　·　每輪 ${fires} 發　·　展開寫需 ${expanded} 格`;
+      `${script.name}　·　容量 ${used}/${script.capacity} 格　·　每輪 ${fires} 發　·　` +
+      `展開寫需 ${expanded} 格　·　移速 ${move}%`;
     this.meta.classList.toggle("over", overCapacity);
   }
 

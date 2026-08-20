@@ -29,5 +29,7 @@ export interface Bullet {
   damage: number;
   /** 還能穿透幾個敵人。0 = 命中即消失 */
   pierce: number;
+  /** 發射當下的蓄力倍率。傷害已經算進去了，這裡留著是為了畫面表現 */
+  charge: number;
   life: number;
 }

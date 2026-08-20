@@ -1,4 +1,4 @@
-import { BULLET, CYCLE_COOLDOWN } from "./config";
+import { BULLET, CHARGE, CYCLE_COOLDOWN } from "./config";
 import type { AimTarget, Script } from "./script/ast";
 import { ScriptRunner, type BulletOpts, type ScriptHost } from "./script/vm";
 
@@ -17,6 +17,7 @@ interface PreviewBullet {
   vy: number;
   r: number;
   life: number;
+  charge: number;
 }
 
 /**
@@ -66,6 +67,7 @@ export class Preview implements ScriptHost {
   fire(dirDeg: number, opts: BulletOpts): void {
     if (this.bullets.length > 600) return;
     const a = dirDeg * DEG;
+    const gap = Math.min(1, this.runner.consumeCharge() / CHARGE.fullTime);
     this.bullets.push({
       x: 0,
       y: 0,
@@ -73,6 +75,7 @@ export class Preview implements ScriptHost {
       vy: Math.sin(a) * opts.speed,
       r: opts.size,
       life: BULLET.life,
+      charge: CHARGE.min + (CHARGE.max - CHARGE.min) * gap,
     });
   }
 
@@ -130,15 +133,16 @@ export class Preview implements ScriptHost {
     ctx.globalAlpha = 1;
 
     ctx.globalCompositeOperation = "lighter";
-    ctx.fillStyle = "#5ce1ff";
     for (const b of this.bullets) {
-      ctx.globalAlpha = 0.25;
+      ctx.globalAlpha = 0.1 + Math.min(0.38, b.charge * 0.14);
+      ctx.fillStyle = "#5ce1ff";
       ctx.beginPath();
       ctx.arc(b.x, b.y, b.r * 2.4, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 1;
+      ctx.fillStyle = b.charge > 1.7 ? "#ffffff" : "#5ce1ff";
       ctx.beginPath();
-      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.arc(b.x, b.y, b.r * (0.92 + b.charge * 0.06), 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalCompositeOperation = "source-over";

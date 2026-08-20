@@ -32,6 +32,8 @@ interface Result {
   firesPerCycle: number;
   cycles: number;
   fired: number;
+  damage: number;
+  mobility: number;
   kills: number;
   hp: number;
   predictedCycleMs: number;
@@ -44,10 +46,16 @@ function simulate(script: Script, seconds: number): Result {
   world.setViewport(1280, 720);
 
   let fired = 0;
+  let damage = 0;
   const realFire = world.fire.bind(world);
   world.fire = (dir, opts) => {
-    fired++;
+    const before = world.bullets.length;
     realFire(dir, opts);
+    // 蓄力倍率在 fire() 裡才算出來，只能從剛生出來的子彈上讀回
+    if (world.bullets.length > before) {
+      fired++;
+      damage += world.bullets[world.bullets.length - 1].damage;
+    }
   };
 
   const steps = Math.round(seconds / STEP);
@@ -63,6 +71,8 @@ function simulate(script: Script, seconds: number): Result {
     firesPerCycle: countFires(script.body),
     cycles: world.runner.cycles,
     fired,
+    damage,
+    mobility: world.mobilityMultiplier,
     kills: world.kills,
     hp: world.player.hp,
     predictedCycleMs: predictCycleMs(script.body),
@@ -100,9 +110,10 @@ const seconds = Number(process.argv[2]) || 10;
 console.log(`\n積木成本 ${BLOCK_COST * 1000}ms　·　週期冷卻 ${CYCLE_COOLDOWN * 1000}ms　·　每張腳本模擬 ${seconds} 秒\n`);
 console.log(
   pad("腳本", 12) + pad("容量", 10) + pad("每輪發數", 10) + pad("展開格數", 10) +
-  pad("週期(預測/實測)", 20) + pad("每秒發數", 10) + pad("擊殺", 6) + pad("剩餘HP", 8),
+  pad("週期(預測/實測)", 20) + pad("每秒發數", 9) + pad("每發傷害", 10) +
+  pad("每秒傷害", 10) + pad("移速", 7) + pad("擊殺", 6),
 );
-console.log("─".repeat(88));
+console.log("─".repeat(104));
 
 for (const script of PRESETS) {
   const r = simulate(script, seconds);
@@ -112,9 +123,11 @@ for (const script of PRESETS) {
     pad(r.firesPerCycle, 10) +
     pad(r.expanded, 10) +
     pad(`${r.predictedCycleMs.toFixed(0)} / ${r.actualCycleMs.toFixed(0)}ms`, 20) +
-    pad((r.fired / seconds).toFixed(1), 10) +
-    pad(r.kills, 6) +
-    pad(r.hp, 8),
+    pad((r.fired / seconds).toFixed(1), 9) +
+    pad((r.damage / Math.max(1, r.fired)).toFixed(1), 10) +
+    pad((r.damage / seconds).toFixed(1), 10) +
+    pad(`${Math.round(r.mobility * 100)}%`, 7) +
+    pad(r.kills, 6),
   );
 }
 

@@ -105,14 +105,17 @@ export class Renderer {
     // 加法混色做發光。比 shadowBlur 快一個量級，密集彈幕下差異很明顯
     ctx.globalCompositeOperation = "lighter";
     for (const b of world.bullets) {
-      ctx.globalAlpha = 0.25;
+      // 蓄力反映在亮度與光暈上，不明顯改變大小 ——
+      // 大小是學生用積木控制的參數，混在一起會讓兩件事都讀不準
+      ctx.globalAlpha = 0.1 + Math.min(0.38, b.charge * 0.14);
       ctx.fillStyle = COLOR.bullet;
       ctx.beginPath();
       ctx.arc(b.x, b.y, b.r * 2.4, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 1;
+      ctx.fillStyle = b.charge > 1.7 ? "#ffffff" : COLOR.bullet;
       ctx.beginPath();
-      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.arc(b.x, b.y, b.r * (0.92 + b.charge * 0.06), 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalCompositeOperation = "source-over";

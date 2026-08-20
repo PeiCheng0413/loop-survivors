@@ -128,6 +128,13 @@ export class ScriptRunner {
   readonly state: VMState;
   /** 完成的攻擊週期數，拿來觀察腳本節奏 */
   cycles = 0;
+  /**
+   * 距離上一次發射過了多久（腳本時間，秒）。蓄力的計算基礎。
+   *
+   * 用腳本時間而非幀時間：一幀會跑掉約 6 塊積木，若以幀為單位，同一幀內的
+   * 第二發之後全都會被算成「間隔 0」。腳本時間才分得出 4ms 與 100ms 的差別。
+   */
+  sinceFire = 0;
   /** 這一輪已經跑到第幾步，給 HUD 的進度條用 */
   private steps = 0;
   private stepsLastCycle = 1;
@@ -161,6 +168,14 @@ export class ScriptRunner {
     Object.assign(this.state, freshOpts());
     this.state.currentId = null;
     this.state.trace.length = 0;
+    this.sinceFire = 0;
+  }
+
+  /** 讀出並歸零蓄力計時。發射子彈時呼叫一次 */
+  consumeCharge(): number {
+    const t = this.sinceFire;
+    this.sinceFire = 0;
+    return t;
   }
 
   /** 取走這段期間的執行軌跡。HUD 每幀呼叫一次，用來累積餘輝熱度 */
@@ -181,6 +196,7 @@ export class ScriptRunner {
         const pay = Math.min(this.debt, budget);
         this.debt -= pay;
         budget -= pay;
+        this.sinceFire += pay;
         if (this.debt > 1e-9) return; // 預算用完，債還沒還完，下一幀繼續
         this.debt = 0;
       }

@@ -26,8 +26,24 @@ export interface VMState {
   speed: number;
   size: number;
   pierce: number;
-  /** 目前執行到哪一塊積木 —— 積木高亮的資料來源 */
+  /** 目前執行到哪一塊積木 */
   currentId: string | null;
+  /**
+   * 自上次被取走以來，執行過的積木 id 序列。
+   *
+   * 只記 currentId 是不夠的：一幀（16.7ms）會跑掉約 4 塊積木，畫面每幀
+   * 只採樣一次，等於隨機抽一塊來高亮，中間跑過的全部看不見。
+   * 有了完整軌跡，HUD 才能畫出「餘輝」——讓一整幀跑過的積木都亮起來。
+   */
+  trace: string[];
+}
+
+/** 上限保護：暫停或極端腳本下，軌跡不該無限成長 */
+const TRACE_CAP = 1024;
+
+function mark(st: VMState, id: string): void {
+  st.currentId = id;
+  if (st.trace.length < TRACE_CAP) st.trace.push(id);
 }
 
 function freshOpts(): BulletOpts {
@@ -47,7 +63,7 @@ export function* exec(
   host: ScriptHost,
 ): Generator<number, void, void> {
   for (const node of nodes) {
-    st.currentId = node.id;
+    mark(st, node.id);
 
     switch (node.kind) {
       case "repeat": {
@@ -59,7 +75,7 @@ export function* exec(
         for (let i = 0; i < times; i++) {
           yield* exec(node.body, st, host);
           // 回到迴圈頭：讓高亮在跳回時閃一下，視覺上看得出「又繞了一圈」
-          st.currentId = node.id;
+          mark(st, node.id);
         }
         break;
       }
@@ -127,7 +143,7 @@ export class ScriptRunner {
     this.script = script;
     this.host = host;
     this.cycleCooldown = cycleCooldown;
-    this.state = { dir: 0, ...freshOpts(), currentId: null };
+    this.state = { dir: 0, ...freshOpts(), currentId: null, trace: [] };
   }
 
   /** 本輪執行進度 0～1，純粹給 HUD 顯示用 */
@@ -144,6 +160,14 @@ export class ScriptRunner {
     this.state.dir = 0;
     Object.assign(this.state, freshOpts());
     this.state.currentId = null;
+    this.state.trace.length = 0;
+  }
+
+  /** 取走這段期間的執行軌跡。HUD 每幀呼叫一次，用來累積餘輝熱度 */
+  drainTrace(): string[] {
+    const t = this.state.trace.slice();
+    this.state.trace.length = 0;
+    return t;
   }
 
   update(dt: number): void {

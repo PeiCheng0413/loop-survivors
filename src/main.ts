@@ -68,7 +68,8 @@ function frame(now: number): void {
   }
 
   renderer.draw(world, viewW, viewH, dpr);
-  hud.update(world, fps, paused);
+  // 暫停時傳 dt=0 凍結餘輝 —— 空白鍵就成了「定格檢視腳本跑到哪」的工具
+  hud.update(world, paused ? 0 : dt, fps, paused);
   input.endFrame();
 }
 

@@ -59,18 +59,27 @@ html, body {
 .hud-script-body { font-size: 13px; line-height: 1.7; }
 
 .hud-line {
-  padding: 1px 6px;
+  padding: 2px 8px 2px 0;
   border-radius: 4px;
   color: #b8c8de;
-  transition: background-color 60ms linear;
+  /* 不加 transition：熱度已經是連續值，再疊 CSS 補間會讓餘輝糊掉、
+     反而看不出哪一塊是最新執行的 */
 }
 
-/* 積木高亮。這個黃框是整個教學設計的核心紅利 ——
+/* 積木高亮的底色由 JS 依「餘輝熱度」逐幀給值（見 hud.ts），
+   這裡只負責波前緣的強調。這個黃色是整個教學設計的核心紅利 ——
    學生會親眼看見它在迴圈裡繞圈：轉、射、轉、射…… */
-.hud-line.active {
-  background: rgba(255, 200, 60, 0.22);
-  color: #ffe9a8;
-  box-shadow: inset 2px 0 0 #ffc83c;
+.hud-line.head {
+  box-shadow: inset 3px 0 0 #ffc83c, 0 0 12px rgba(255, 200, 60, 0.25);
+}
+
+/* 本輪執行次數。迴圈跑了 24 次這件事，用數字說比用動畫說更牢固 */
+.hud-count {
+  float: right;
+  margin-left: 14px;
+  font-size: 11px;
+  color: #ffc83c;
+  opacity: 0.75;
 }
 
 .hud-progress {

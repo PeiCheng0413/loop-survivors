@@ -4,11 +4,24 @@ import type { World } from "../game/world";
 
 /**
  * HUD 用 DOM 而非 canvas 繪製：中文字排版、腳本清單的高亮切換，
- * DOM 都比 canvas 省事太多，而且更新量小（每幀只改幾個 textContent）。
+ * DOM 都比 canvas 省事太多，而且更新量小。
  *
  * 這裡的腳本面板是 M1 Blockly 工作區的前身 —— 先用文字驗證
  * 「看得見迴圈在跑」這個教學紅利是否真的成立。
  */
+
+/**
+ * 餘輝衰減時間（秒）。積木被執行時熱度衝到 1，然後在這段時間內退回 0。
+ *
+ * 為什麼需要餘輝：一塊積木只佔 4ms，而畫面每 16.7ms 才畫一次 —— 直接畫
+ * 「當前積木」等於每幀隨機抽一塊來亮，中間跑過的三塊完全看不見，看起來
+ * 就是亂閃。改成熱度衰減後，一整幀跑過的積木會全部亮起來並慢慢退色，
+ * 迴圈就變成一道**看得見的行進波**。
+ *
+ * 這個值只影響顯示，完全不動遊戲速度 —— 可讀性與遊戲性不必互相犧牲。
+ */
+const HEAT_DECAY = 0.45;
+
 export class Hud {
   private stats: HTMLElement;
   private scriptName: HTMLElement;
@@ -17,8 +30,17 @@ export class Hud {
   private progressBar: HTMLElement;
   private hpBar: HTMLElement;
   private banner: HTMLElement;
+
   private lineEls = new Map<string, HTMLElement>();
-  private activeId: string | null = null;
+  private countEls = new Map<string, HTMLElement>();
+  /** 每塊積木的餘輝熱度 0～1 */
+  private heat = new Map<string, number>();
+  /** 本輪各積木的執行次數（累積中） */
+  private counts = new Map<string, number>();
+  /** 上一輪的執行次數（顯示用，冷卻期間維持不變才讀得到） */
+  private shown = new Map<string, number>();
+  private lastCycle = -1;
+  private headId: string | null = null;
 
   constructor(root: HTMLElement) {
     root.innerHTML = `
@@ -55,36 +77,85 @@ export class Hud {
 
     this.scriptBody.innerHTML = "";
     this.lineEls.clear();
-    this.activeId = null;
+    this.countEls.clear();
+    this.heat.clear();
+    this.counts.clear();
+    this.shown.clear();
+    this.headId = null;
+    this.lastCycle = -1;
+
     for (const line of toLines(script.body)) {
       const el = document.createElement("div");
       el.className = "hud-line";
-      el.style.paddingLeft = `${line.depth * 16}px`;
-      el.textContent = line.text;
+      el.style.paddingLeft = `${8 + line.depth * 16}px`;
+
+      const text = document.createElement("span");
+      text.textContent = line.text;
+      const count = document.createElement("span");
+      count.className = "hud-count";
+
+      el.append(text, count);
       this.scriptBody.appendChild(el);
       this.lineEls.set(line.id, el);
+      this.countEls.set(line.id, count);
     }
   }
 
-  update(world: World, fps: number, paused: boolean): void {
+  /** dt 傳 0 代表凍結餘輝（暫停時定格檢視） */
+  update(world: World, dt: number, fps: number, paused: boolean): void {
     const t = world.time;
     this.stats.textContent =
       `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}` +
       `　擊殺 ${world.kills}　敵人 ${world.enemies.length}　子彈 ${world.bullets.length}` +
       `　週期 ${world.runner.cycles}　${Math.round(fps)} fps`;
 
-    // 積木高亮：只切換有變動的兩個元素，不整份重繪
-    const id = world.runner.state.currentId;
-    if (id !== this.activeId) {
-      if (this.activeId) this.lineEls.get(this.activeId)?.classList.remove("active");
-      if (id) this.lineEls.get(id)?.classList.add("active");
-      this.activeId = id;
-    }
+    this.updateHeat(world, dt);
 
     this.progressBar.style.width = `${world.runner.progress * 100}%`;
     this.hpBar.style.width = `${(world.player.hp / world.player.maxHp) * 100}%`;
 
     const msg = world.dead ? "陣亡　按 R 重來" : paused ? "暫停" : "";
     if (this.banner.textContent !== msg) this.banner.textContent = msg;
+  }
+
+  private updateHeat(world: World, dt: number): void {
+    // 一輪跑完就把計數換到顯示欄位。冷卻期間數字維持不變，
+    // 學生才有時間讀「這一輪這塊跑了 24 次」。
+    if (world.runner.cycles !== this.lastCycle) {
+      if (this.counts.size > 0) {
+        this.shown = new Map(this.counts);
+        this.counts.clear();
+      }
+      this.lastCycle = world.runner.cycles;
+    }
+
+    // 取走這一幀跑過的所有積木 —— 不是只取最後一塊
+    const trace = world.runner.drainTrace();
+    for (const id of trace) {
+      this.heat.set(id, 1);
+      this.counts.set(id, (this.counts.get(id) ?? 0) + 1);
+    }
+    if (trace.length > 0) this.headId = trace[trace.length - 1];
+
+    const fade = dt / HEAT_DECAY;
+    for (const [id, el] of this.lineEls) {
+      let h = this.heat.get(id) ?? 0;
+      if (h > 0 && fade > 0) {
+        h = Math.max(0, h - fade);
+        this.heat.set(id, h);
+      }
+
+      // 底色強度直接綁在熱度上：剛跑過的最亮，越舊越淡。
+      // 因為衰減比執行慢得多，整個迴圈體會同時發亮，
+      // 而最亮的那塊就是「現在跑到哪」的行進波前緣。
+      el.style.backgroundColor = h > 0 ? `rgba(255, 200, 60, ${(0.10 + h * 0.42).toFixed(3)})` : "";
+      el.style.color = h > 0.05 ? "#fff3d0" : "";
+      el.classList.toggle("head", h > 0 && id === this.headId);
+
+      const n = this.shown.get(id) ?? 0;
+      const label = n > 1 ? `×${n}` : "";
+      const countEl = this.countEls.get(id)!;
+      if (countEl.textContent !== label) countEl.textContent = label;
+    }
   }
 }

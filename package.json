@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sim": "rolldown tools/sim.ts --format esm -d node_modules/.cache/sim && node node_modules/.cache/sim/sim.js"
   },
   "devDependencies": {
     "typescript": "~6.0.2",

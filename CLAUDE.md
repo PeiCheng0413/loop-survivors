@@ -34,6 +34,8 @@ src/
   render/
     renderer.ts      Canvas 2D 繪製：純粹讀 World 畫出來，不改狀態
     hud.ts           HUD 疊層
+tools/
+  sim.ts             無頭模擬器（不進建置產物）
 ```
 
 ### 三條架構鐵律
@@ -67,6 +69,11 @@ src/
 ```bash
 npm run dev      # http://localhost:5173
 npm run build    # tsc + vite build，產出純靜態檔
+npm run sim      # 無頭模擬，量測各腳本的實際輸出（npm run sim -- 30 可指定秒數）
 ```
+
+`tools/sim.ts` 是調平衡的主要工具，也是時間成本模型的迴歸測試：
+若「預測週期」與「實測週期」開始對不上，代表 VM 計時邏輯被改壞了。
+改完 config.ts 的任何數值都該重跑一次。
 
 部署為純靜態（GitHub Pages 或校內 NAS），無後端。

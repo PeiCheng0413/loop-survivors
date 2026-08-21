@@ -31,6 +31,8 @@ function nodeToState(node: Node): State {
     case "addSize": return { type: "ls_add_size", fields: { VALUE: node.value } };
     case "setLife": return { type: "ls_set_life", fields: { VALUE: node.value } };
     case "setSplit": return { type: "ls_split" };
+    case "forward": return { type: "ls_forward", fields: { VALUE: node.value } };
+    case "right": return { type: "ls_right", fields: { DEGREES: node.degrees } };
     case "setHoming": return { type: "ls_homing" };
     case "setExplode": return { type: "ls_explode" };
   }

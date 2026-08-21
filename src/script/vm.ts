@@ -1,4 +1,4 @@
-import { BLOCK_COST, REPEAT_LIMIT, BULLET } from "../config";
+import { ARROW, BLOCK_COST, REPEAT_LIMIT, BULLET } from "../config";
 import type { AimTarget, Node, Script } from "./ast";
 
 /**
@@ -9,6 +9,13 @@ import type { AimTarget, Node, Script } from "./ast";
  */
 export interface ScriptHost {
   fire(dirDeg: number, opts: BulletOpts): void;
+  /**
+   * 箭矢專用。攻擊腳本的 host（World）不會實作這兩個 ——
+   * 用選擇性方法而非另開一個介面，是為了讓兩種腳本共用同一個直譯器，
+   * 不必維護兩份幾乎相同的執行邏輯。
+   */
+  forward?(distance: number): void;
+  right?(degrees: number): void;
   /** 回傳角度（度）。查不到目標時回傳 fallback，讓腳本永遠不會卡住 */
   aimAngle(target: AimTarget, fallback: number): number;
 }
@@ -166,6 +173,17 @@ export function* exec(
 
       case "setLife":
         st.life = node.value;
+        yield BLOCK_COST;
+        break;
+
+      case "forward":
+        host.forward?.(node.value);
+        // 移動要花時間：距離越長走越久，正 n 邊形的邊長因此有代價
+        yield BLOCK_COST + Math.abs(node.value) / ARROW.speed;
+        break;
+
+      case "right":
+        host.right?.(node.degrees);
         yield BLOCK_COST;
         break;
 

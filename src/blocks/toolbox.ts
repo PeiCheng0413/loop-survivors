@@ -59,3 +59,20 @@ export function buildToolbox(rare: Map<string, number>): Blockly.utils.toolbox.T
 
 /** 起始工具箱：只有基本八塊 */
 export const TOOLBOX = buildToolbox(new Map());
+
+/**
+ * 箭矢路徑的工具箱。只有迴圈與移動 —— 刻意極簡，
+ * 因為它要教的只有一件事：正 N 邊形的每次轉角 = 360 ÷ N。
+ */
+export const ARROW_TOOLBOX: Blockly.utils.toolbox.ToolboxDefinition = {
+  kind: "flyoutToolbox",
+  contents: [
+    { kind: "label", text: "控制" },
+    { kind: "block", type: "ls_repeat" },
+    { kind: "block", type: "ls_wait" },
+    { kind: "sep", gap: "16" },
+    { kind: "label", text: "移動" },
+    { kind: "block", type: "ls_forward" },
+    { kind: "block", type: "ls_right" },
+  ],
+};

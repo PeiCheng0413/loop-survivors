@@ -196,4 +196,24 @@ export const BLOCK_DEFS = [
     colour: RARE,
     tooltip: "稀有積木。命中時分裂成兩發較小的子彈，往兩側散開",
   },
+  {
+    // 箭矢專用。刻意用「前進／右轉」而非「移動／旋轉」，
+    // 與子彈的「方向旋轉」在字面上就分得開，避免學生混淆兩套座標概念
+    type: "ls_forward",
+    message0: "前進 %1",
+    args0: [{ type: "field_number", name: "VALUE", value: 60, min: 10, max: 200, precision: 5 }],
+    previousStatement: null,
+    nextStatement: null,
+    colour: "#4CBF56",
+    tooltip: "箭矢往目前的方向前進。距離越長，走完花的時間越久",
+  },
+  {
+    type: "ls_right",
+    message0: "右轉 %1 度",
+    args0: [{ type: "field_number", name: "DEGREES", value: 60, min: -180, max: 180, precision: 1 }],
+    previousStatement: null,
+    nextStatement: null,
+    colour: "#4CBF56",
+    tooltip: "箭矢原地轉向。正 N 邊形的每次轉角 = 360 ÷ N",
+  },
 ];

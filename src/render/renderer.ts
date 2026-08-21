@@ -16,6 +16,7 @@ const COLOR = {
   blocked: "#5a6a80",
   bullet: "#5ce1ff",
   gem: "#7dffb0",
+  arrow: "#4CBF56",
 };
 
 const GRID = 80;
@@ -62,6 +63,7 @@ export class Renderer {
     this.drawGems(world);
     this.drawEnemies(world);
     this.drawBullets(world);
+    this.drawArrow(world);
     this.drawPlayer(world);
 
     ctx.restore();
@@ -167,6 +169,50 @@ export class Renderer {
     }
     ctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1;
+  }
+
+  /**
+   * 飛行箭矢與它的軌跡殘影。
+   *
+   * 殘影是這個功能的核心視覺：學生畫的正 n 邊形必須**看得見**，
+   * 否則「轉角算對了沒」只能靠猜。沒有殘影的話，這個練習等於沒有回饋。
+   */
+  private drawArrow(world: World): void {
+    const arrow = world.arrow;
+    if (!arrow) return;
+    const ctx = this.ctx;
+
+    if (arrow.trail.length > 1) {
+      ctx.strokeStyle = COLOR.arrow;
+      ctx.lineWidth = 2;
+      ctx.lineJoin = "round";
+      for (let i = 1; i < arrow.trail.length; i++) {
+        const a = arrow.trail[i - 1];
+        const b = arrow.trail[i];
+        // 越舊越淡，形狀因此有「正在被畫出來」的方向感
+        ctx.globalAlpha = Math.min(0.75, (b.life / 2.4) * 0.75);
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // 箭矢本體畫成三角形，尖端指著目前朝向 —— 學生看得出「右轉」轉到哪了
+    const a = arrow.dir * DEG;
+    ctx.save();
+    ctx.translate(arrow.x, arrow.y);
+    ctx.rotate(a);
+    ctx.fillStyle = COLOR.arrow;
+    ctx.beginPath();
+    ctx.moveTo(10, 0);
+    ctx.lineTo(-6, 6);
+    ctx.lineTo(-3, 0);
+    ctx.lineTo(-6, -6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
   }
 
   private drawPlayer(world: World): void {

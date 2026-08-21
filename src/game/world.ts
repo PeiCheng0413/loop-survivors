@@ -6,6 +6,7 @@ import {
 import { scriptSpec, type Script } from "../script/ast";
 import type { AimTarget } from "../script/ast";
 import { ScriptRunner, type BulletOpts, type ScriptHost } from "../script/vm";
+import { ArrowUnit } from "./arrow";
 import { EnemyGrid } from "./collision";
 import type { Bullet, Enemy, Gem, Player, Stats } from "./types";
 import type { Input } from "./input";
@@ -46,6 +47,8 @@ export class World implements ScriptHost {
   private onceSpawned = 0;
   /** 王的參考，給 HUD 畫血條 */
   boss: Enemy | null = null;
+  /** 飛行箭矢（§9b 驗證原型）。尚未做成解鎖，開局就存在 */
+  arrow: ArrowUnit | null = null;
   /** 由腳本規格換算出的移動速度倍率。火力換機動 */
   private mobility = 1;
 
@@ -61,6 +64,12 @@ export class World implements ScriptHost {
     };
     this.runner = new ScriptRunner(script, this, CYCLE_COOLDOWN);
     this.mobility = computeMobility(script);
+  }
+
+  /** 設定箭矢的路徑腳本。第一次呼叫時才建立箭矢 */
+  setArrowScript(script: Script): void {
+    if (!this.arrow) this.arrow = new ArrowUnit(this, script);
+    else this.arrow.setScript(script);
   }
 
   /** 腳本一改就要重算機動性，讓學生拖積木的當下就看得到移速變化 */
@@ -133,18 +142,40 @@ export class World implements ScriptHost {
   // ---- ScriptHost ----------------------------------------------------
 
   fire(dirDeg: number, opts: BulletOpts): void {
+    const a = dirDeg * DEG;
+    const charge = chargeMultiplier(this.runner.consumeCharge());
+    this.emitBullet(
+      this.player.x + Math.cos(a) * this.player.r,
+      this.player.y + Math.sin(a) * this.player.r,
+      a,
+      BULLET.damage * this.stats.damage,
+      opts,
+      charge,
+    );
+  }
+
+  /**
+   * 生成一發子彈。玩家與箭矢共用這條路徑，確保碰撞、上限、視覺
+   * 三者的規則只有一份。
+   */
+  emitBullet(
+    x: number,
+    y: number,
+    angleRad: number,
+    damage: number,
+    opts: BulletOpts,
+    charge: number,
+  ): void {
     // 硬上限是工程保險，不對學生說明。溢出時直接不生成，
     // 讓效能問題以「火力沒有變強」的形式呈現，而不是掉幀。
     if (this.bullets.length >= MAX_BULLETS) return;
-    const a = dirDeg * DEG;
-    const charge = chargeMultiplier(this.runner.consumeCharge());
     this.bullets.push({
-      x: this.player.x + Math.cos(a) * this.player.r,
-      y: this.player.y + Math.sin(a) * this.player.r,
-      vx: Math.cos(a) * opts.speed,
-      vy: Math.sin(a) * opts.speed,
+      x,
+      y,
+      vx: Math.cos(angleRad) * opts.speed,
+      vy: Math.sin(angleRad) * opts.speed,
       r: opts.size,
-      damage: BULLET.damage * charge * this.stats.damage,
+      damage: damage * charge,
       pierce: opts.pierce,
       life: opts.life,
       charge,
@@ -167,6 +198,11 @@ export class World implements ScriptHost {
         return Math.atan2(e.y - this.player.y, e.x - this.player.x) / DEG;
       }
     }
+  }
+
+  /** 給箭矢用的公開版本 */
+  nearestEnemyTo(x: number, y: number): Enemy | null {
+    return this.findNearest(x, y);
   }
 
   private nearestEnemy(): Enemy | null {
@@ -193,6 +229,7 @@ export class World implements ScriptHost {
     this.grid.rebuild(this.enemies);
     this.moveEnemies(dt);
     this.runner.update(dt); // 腳本推進 —— 子彈就是在這裡生出來的
+    this.arrow?.update(dt);
     this.moveBullets(dt);
     this.hitEnemies();
     this.collectGems(dt);
@@ -322,7 +359,7 @@ export class World implements ScriptHost {
    * 追蹤是「補正」而不是「代替瞄準」。
    */
   private steer(b: Bullet, dt: number): void {
-    const target = this.nearestEnemyTo(b.x, b.y);
+    const target = this.findNearest(b.x, b.y);
     if (!target) return;
     const desired = Math.atan2(target.y - b.y, target.x - b.x);
     const current = Math.atan2(b.vy, b.vx);
@@ -338,7 +375,7 @@ export class World implements ScriptHost {
     b.vy = Math.sin(next) * speed;
   }
 
-  private nearestEnemyTo(x: number, y: number): Enemy | null {
+  private findNearest(x: number, y: number): Enemy | null {
     let best: Enemy | null = null;
     let bestD = Infinity;
     this.grid.forEachNear(x, y, 320, (i) => {

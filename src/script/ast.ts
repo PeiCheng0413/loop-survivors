@@ -45,7 +45,11 @@ export type Node =
   /** 子彈改為爆裂 —— 稀有積木，只能從升級卡取得 */
   | { kind: "setExplode"; id: string }
   /** 子彈改為分裂 —— 稀有積木，命中後分成兩發小彈 */
-  | { kind: "setSplit"; id: string };
+  | { kind: "setSplit"; id: string }
+  /** 前進 (value) —— 箭矢專用。移動需要時間，距離越長花越久 */
+  | { kind: "forward"; id: string; value: number }
+  /** 右轉 (degrees) 度 —— 箭矢專用 */
+  | { kind: "right"; id: string; degrees: number };
 
 export interface Script {
   name: string;

@@ -28,10 +28,17 @@ export class Editor {
   private lastCycle = -1;
   /** 這一局已解鎖的稀有積木與數量 */
   private rare = new Map<string, number>();
+  /** 這個工作區的基礎工具箱。攻擊腳本與箭矢路徑用的是不同的兩套 */
+  private baseToolbox: Blockly.utils.toolbox.ToolboxDefinition;
 
-  constructor(container: HTMLElement, onChange: () => void) {
+  constructor(
+    container: HTMLElement,
+    onChange: () => void,
+    toolbox: Blockly.utils.toolbox.ToolboxDefinition = TOOLBOX,
+  ) {
+    this.baseToolbox = toolbox;
     this.workspace = Blockly.inject(container, {
-      toolbox: TOOLBOX,
+      toolbox,
       theme: THEME,
       renderer: "zelos",
       // Blockly 預設會去官方 CDN 抓圖示。這裡指向 public/ 底下的本機副本，
@@ -62,7 +69,7 @@ export class Editor {
     this.current = { ...script };
     this.rare.clear();
     this.workspace.options.maxInstances = {};
-    this.workspace.updateToolbox(TOOLBOX);
+    this.workspace.updateToolbox(this.baseToolbox);
     this.heat.clear();
     this.counts.clear();
     this.shown.clear();

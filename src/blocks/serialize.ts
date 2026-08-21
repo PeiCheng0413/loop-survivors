@@ -55,6 +55,10 @@ function toNode(b: Blockly.Block): Node | null {
       return { kind: "setLife", id: b.id, value: num(b, "VALUE") };
     case "ls_split":
       return { kind: "setSplit", id: b.id };
+    case "ls_forward":
+      return { kind: "forward", id: b.id, value: num(b, "VALUE") };
+    case "ls_right":
+      return { kind: "right", id: b.id, degrees: num(b, "DEGREES") };
     case "ls_homing":
       return { kind: "setHoming", id: b.id };
     case "ls_explode":

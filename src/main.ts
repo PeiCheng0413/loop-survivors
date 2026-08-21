@@ -6,15 +6,18 @@ import { World } from "./game/world";
 import { Hud } from "./render/hud";
 import { Renderer } from "./render/renderer";
 import { Splitter } from "./splitter";
+import { ARROW_TOOLBOX } from "./blocks/toolbox";
 import { Preview } from "./preview";
 import { LevelUp } from "./levelup";
 import { drawCards, type CardContext } from "./cards";
-import { PRESETS } from "./script/presets";
+import { ARROW_PRESET, PRESETS } from "./script/presets";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
 const hudRoot = document.querySelector<HTMLElement>("#hud")!;
 const editorRoot = document.querySelector<HTMLElement>("#editor")!;
 const blocklyRoot = document.querySelector<HTMLElement>("#blockly")!;
+const arrowRoot = document.querySelector<HTMLElement>("#blockly-arrow")!;
+const tabs = document.querySelector<HTMLElement>("#editor-tabs")!;
 const previewCanvas = document.querySelector<HTMLCanvasElement>("#preview-canvas")!;
 const previewPanel = document.querySelector<HTMLElement>("#preview")!;
 const levelUpRoot = document.querySelector<HTMLElement>("#levelup")!;
@@ -59,6 +62,33 @@ const editor = new Editor(blocklyRoot, () => {
   hud.setScript(script, editor.used(), world.mobilityMultiplier);
 });
 
+/**
+ * 箭矢路徑的編輯器（§9b 驗證原型）。
+ *
+ * 與攻擊腳本共用同一個 Editor 類別，只是換一套工具箱與容量 ——
+ * 這正是「雙腳本能不能運作」要驗證的第一件事：兩個 Blockly 工作區
+ * 在同一頁會不會互相干擾。
+ */
+const arrowEditor = new Editor(
+  arrowRoot,
+  () => world.setArrowScript(arrowEditor.read()),
+  ARROW_TOOLBOX,
+);
+arrowEditor.load(ARROW_PRESET);
+
+// 分頁切換。隱藏的工作區量測會得到 0，切回來時必須重新 resize
+tabs.addEventListener("click", (e) => {
+  const btn = (e.target as HTMLElement).closest("button");
+  if (!btn) return;
+  const isArrow = btn.dataset.tab === "arrow";
+  blocklyRoot.classList.toggle("hidden", isArrow);
+  arrowRoot.classList.toggle("hidden", !isArrow);
+  for (const b of tabs.querySelectorAll("button")) {
+    b.classList.toggle("active", b === btn);
+  }
+  (isArrow ? arrowEditor : editor).resize();
+});
+
 function loadPreset(i: number): void {
   editor.load(PRESETS[i]); // 觸發 onChange，腳本會自動套用
 }
@@ -90,6 +120,7 @@ function resize(): void {
   // 收合時容器是 display:none，量測會得到 0，跳過即可
   if (splitter.width > 0) {
     editor.resize();
+    arrowEditor.resize();
     if (paused) preview.resize();
   }
 }

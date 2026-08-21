@@ -33,6 +33,8 @@ function label(node: Node): string {
     case "addSize": return `子彈大小增加 ${node.value}`;
     case "setLife": return `子彈存活 ${node.value} 秒`;
     case "setSplit": return "子彈改為分裂";
+    case "forward": return `前進 ${node.value}`;
+    case "right": return `右轉 ${node.degrees} 度`;
     case "setHoming": return "子彈改為追蹤";
     case "setExplode": return "子彈改為爆裂";
   }

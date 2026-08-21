@@ -268,3 +268,22 @@ export const EXPLODE = {
   /** 相對於子彈本身傷害的比例 */
   damageRatio: 0.6,
 };
+
+/**
+ * 飛行箭矢（§9b）。這一版是**技術驗證原型**，只為了回答「雙腳本能不能運作」，
+ * 尚未實作正 n 邊形判定與增益。
+ */
+export const ARROW = {
+  /** 移動速度（像素／秒）。「前進 N」所需時間 = N ÷ 這個值 */
+  speed: 210,
+  radius: 7,
+  /** 自動攻擊的間隔與傷害 */
+  fireInterval: 0.55,
+  damage: 5,
+  bulletSpeed: 460,
+  bulletSize: 3,
+  /** 路徑腳本的容量，與攻擊腳本各自獨立（見 §9b） */
+  capacity: 10,
+  /** 軌跡殘影的保留秒數，讓學生看得見自己畫出的形狀 */
+  trailLife: 2.4,
+};

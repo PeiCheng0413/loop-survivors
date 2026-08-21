@@ -20,6 +20,8 @@ const aim = (target: AimTarget): Node => ({ kind: "aim", id: nid(), target });
 const setSpeed = (value: number): Node => ({ kind: "setSpeed", id: nid(), value });
 const turnByIndex = (degrees: number): Node => ({ kind: "turnByIndex", id: nid(), degrees });
 const addSpeed = (value: number): Node => ({ kind: "addSpeed", id: nid(), value });
+const forward = (value: number): Node => ({ kind: "forward", id: nid(), value });
+const right = (degrees: number): Node => ({ kind: "right", id: nid(), degrees });
 const setSize = (value: number): Node => ({ kind: "setSize", id: nid(), value });
 const setPierce = (value: number): Node => ({ kind: "setPierce", id: nid(), value });
 
@@ -68,3 +70,15 @@ export const PRESETS: Script[] = [
     body: [repeat(8, [turn(45), repeat(3, [fire(), turn(6)])])],
   },
 ];
+
+/**
+ * 箭矢的預設路徑：正六邊形。
+ *
+ * 360 ÷ 6 = 60 —— 這個關係就是整個練習的重點，起手腳本先示範一次，
+ * 學生改成 5 或 8 就會發現轉角必須跟著換，否則圖形不會閉合。
+ */
+export const ARROW_PRESET: Script = {
+  name: "箭矢路徑",
+  capacity: 10,
+  body: [repeat(6, [forward(60), right(60)])],
+};

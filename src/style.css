@@ -54,9 +54,44 @@ html, body {
 
 /* min-height: 0 是必要的 —— flex 子項預設不會縮到內容以下，
    少了它 Blockly 會把預覽區擠出畫面外 */
-#blockly {
+/* 分頁列。雙腳本的驗證重點之一就是「切換成本」——
+   若學生因為要切分頁而懶得改箭矢路徑，這個設計就要重想。 */
+#editor-tabs {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+  padding: 6px 8px 0;
+  background: #0d1320;
+}
+
+#editor-tabs button {
+  flex: 1;
+  padding: 7px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--dim);
+  background: #131c2b;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 7px 7px 0 0;
+  cursor: pointer;
+}
+
+#editor-tabs button.active {
+  color: var(--fg);
+  background: #101725;
+  border-color: rgba(92, 225, 255, 0.4);
+}
+
+#blockly,
+#blockly-arrow {
   flex: 1;
   min-height: 0;
+}
+
+#blockly.hidden,
+#blockly-arrow.hidden {
+  display: none;
 }
 
 #preview {

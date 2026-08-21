@@ -1,4 +1,4 @@
-import { ARROW, BLOCK_COST, REPEAT_LIMIT, BULLET } from "../config";
+import { ARROW, BLOCK_COST, REPEAT_LIMIT } from "../config";
 import type { AimTarget, Node, Script } from "./ast";
 
 /**
@@ -66,16 +66,14 @@ function mark(st: VMState, id: string): void {
   if (st.trace.length < TRACE_CAP) st.trace.push(id);
 }
 
-function freshOpts(): BulletOpts {
-  return {
-    speed: BULLET.speed,
-    size: BULLET.size,
-    pierce: BULLET.pierce,
-    homing: false,
-    explode: false,
-    split: false,
-    life: BULLET.life,
-  };
+/**
+ * 每輪開始時把發射參數重置回武器的基準值。
+ *
+ * 基準由外部傳入而非寫死 —— 不同武器有不同的子彈基礎屬性，
+ * VM 不該知道任何一把武器的數字（見 weapons/types.ts）。
+ */
+function freshOpts(base: BulletOpts): BulletOpts {
+  return { ...base };
 }
 
 /**
@@ -233,12 +231,20 @@ export class ScriptRunner {
   script: Script;
   private host: ScriptHost;
   private cycleCooldown: number;
+  /** 武器的基準子彈屬性。每輪重置時回到這組值 */
+  private baseline: BulletOpts;
 
-  constructor(script: Script, host: ScriptHost, cycleCooldown: number) {
+  constructor(script: Script, host: ScriptHost, cycleCooldown: number, baseline: BulletOpts) {
     this.script = script;
     this.host = host;
     this.cycleCooldown = cycleCooldown;
-    this.state = { dir: 0, ...freshOpts(), loopIndex: 0, currentId: null, trace: [] };
+    this.baseline = baseline;
+    this.state = { dir: 0, ...freshOpts(baseline), loopIndex: 0, currentId: null, trace: [] };
+  }
+
+  /** 換武器時把基準換掉，下一輪起生效 */
+  setBaseline(baseline: BulletOpts): void {
+    this.baseline = baseline;
   }
 
   /** 本輪執行進度 0～1，純粹給 HUD 顯示用 */
@@ -253,7 +259,7 @@ export class ScriptRunner {
     this.cycles = 0;
     this.steps = 0;
     this.state.dir = 0;
-    Object.assign(this.state, freshOpts());
+    Object.assign(this.state, freshOpts(this.baseline));
     this.state.currentId = null;
     this.state.trace.length = 0;
     this.sinceFire = 0;
@@ -301,7 +307,7 @@ export class ScriptRunner {
         // 保留方向讓「重複 8 次 { 旋轉 50 度; 發射 }」跨週期持續轉動，
         // 自然長出旋轉扇形 —— 這是彈幕遊戲最經典的造型，也獎勵學生
         // 去試那些不能整除 360 的角度。
-        Object.assign(this.state, freshOpts());
+        Object.assign(this.state, freshOpts(this.baseline));
       }
 
       const r = this.gen.next();

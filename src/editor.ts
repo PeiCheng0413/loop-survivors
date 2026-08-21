@@ -1,6 +1,7 @@
 import * as Blockly from "blockly/core";
 import { THEME } from "./blocks/defs";
 import { buildToolbox, TOOLBOX } from "./blocks/toolbox";
+import { DEFAULT_WEAPON } from "./weapons";
 import { workspaceToScript } from "./blocks/serialize";
 import { hintFor, HINT_SOURCE } from "./blocks/hints";
 import { scriptToState } from "./blocks/state";
@@ -25,8 +26,10 @@ export class Editor {
   private lastCycle = -1;
   /** 這一局已解鎖的稀有積木與數量 */
   private rare = new Map<string, number>();
-  /** 這個工作區的基礎工具箱。攻擊腳本與箭矢路徑用的是不同的兩套 */
+  /** 這個工作區的基礎工具箱。攻擊腳本與護盾形狀用的是不同的兩套 */
   private baseToolbox: Blockly.utils.toolbox.ToolboxDefinition;
+  /** 目前武器提供的積木清單。解鎖稀有積木時要據此重建工具箱 */
+  private available: string[] = DEFAULT_WEAPON.blocks;
 
   constructor(
     container: HTMLElement,
@@ -139,7 +142,13 @@ export class Editor {
       ...this.workspace.options.maxInstances,
       [type]: next,
     };
-    this.workspace.updateToolbox(buildToolbox(this.rare));
+    this.workspace.updateToolbox(buildToolbox(this.available, this.rare));
+  }
+
+  /** 換武器：積木清單跟著換，已解鎖的稀有積木保留 */
+  setAvailableBlocks(blocks: string[]): void {
+    this.available = blocks;
+    this.workspace.updateToolbox(buildToolbox(blocks, this.rare));
   }
 
   resize(): void {

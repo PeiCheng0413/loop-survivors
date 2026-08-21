@@ -186,15 +186,15 @@ export class Renderer {
    * 特效順便把幾何結構指出來。
    */
   private drawShield(world: World): void {
-    const shape = world.shield;
+    const shape = world.shield.shape;
     // 沒閉合就什麼都不畫：戰場上不存在「半個護盾」。
     // 學生要看自己畫錯在哪，是在暫停時的預覽視窗裡看（見 preview.ts）。
-    if (!shape || shape.sides === 0 || !world.shieldClosed || !world.shieldActive) return;
+    if (!shape || shape.sides === 0 || !world.shield.closed || !world.shield.active) return;
 
     const ctx = this.ctx;
     const t = world.time;
-    const strength = world.shieldHp / SHIELD.maxHp;
-    const flash = world.shieldFlash;
+    const strength = world.shield.hp / SHIELD.maxHp;
+    const flash = world.shield.flash;
     // 呼吸：血量低時跳得更快，像心跳加速
     const pulse = 0.5 + 0.5 * Math.sin(t * (3 + (1 - strength) * 5));
 

@@ -1,4 +1,5 @@
-import { CHARGE, CYCLE_COOLDOWN } from "./config";
+import { CHARGE } from "./config";
+import { DEFAULT_WEAPON } from "./weapons";
 import type { AimTarget, Script } from "./script/ast";
 import type { ShieldShape } from "./game/shield";
 import { SHIELD } from "./config";
@@ -49,7 +50,12 @@ export class Preview implements ScriptHost {
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) throw new Error("預覽畫布取得 2D context 失敗");
     this.ctx = ctx;
-    this.runner = new ScriptRunner({ name: "", capacity: 0, body: [] }, this, CYCLE_COOLDOWN);
+    this.runner = new ScriptRunner(
+      { name: "", capacity: 0, body: [] },
+      this,
+      DEFAULT_WEAPON.cooldown,
+      DEFAULT_WEAPON.bullet,
+    );
   }
 
   setMode(mode: "attack" | "shape"): void {

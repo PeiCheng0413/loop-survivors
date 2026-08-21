@@ -82,7 +82,7 @@ const shapeEditor = new Editor(
   shapeRoot,
   () => {
     world.setShieldScript(shapeEditor.read());
-    preview.setShape(world.shield);
+    preview.setShape(world.shield.shape);
     updatePanelStatus();
   },
   SHAPE_TOOLBOX,
@@ -109,7 +109,7 @@ function updatePanelStatus(): void {
 
 function buildStatus(): { cls: string; html: string } {
   if (shapeTab) {
-    const shape = world.shield;
+    const shape = world.shield.shape;
     if (!shape || shape.sides === 0) {
       return {
         cls: "warn",
@@ -118,15 +118,15 @@ function buildStatus(): { cls: string; html: string } {
           `<div class="status-sub">用「前進」與「右轉」畫一個封閉圖形</div>`,
       };
     }
-    if (world.shieldClosed) {
-      const hp = Math.max(0, Math.round(world.shieldHp));
+    if (world.shield.closed) {
+      const hp = Math.max(0, Math.round(world.shield.hp));
       return {
         cls: "ok",
         html:
           `<div class="status-main">✅ 護盾閉合　${shape.sides} 邊形</div>` +
           `<div class="status-sub">傷害 +${Math.round(shape.sides * SHIELD.buffPerSide * 100)}%　·　` +
-          (world.shieldDown > 0
-            ? `破盾　恢復中 ${world.shieldDown.toFixed(1)}s`
+          (world.shield.down > 0
+            ? `破盾　恢復中 ${world.shield.down.toFixed(1)}s`
             : `護盾 ${hp}/${SHIELD.maxHp}`) +
           `</div>`,
       };

@@ -33,35 +33,82 @@ vanilla TypeScript + Vite ｜ 原生 Canvas 2D ｜ Blockly 13（zelos renderer�
 
 ```
 src/
-  config.ts          所有可調常數集中在此（BLOCK_COST、MAX_BULLETS…）
-  main.ts            進入點：組裝各模組、啟動迴圈
+  config/            設定，依領域分檔（調平衡先來這裡）
+    runtime.ts         執行引擎參數（通常不該動）
+    combat.ts          戰鬥數值 —— 平衡調整的主戰場
+    enemies.ts         敵人原型與階段輪替
+    progress.ts        經驗與升級曲線
+    shield.ts          幾何護盾
+    ui.ts              介面參數
+    index.ts           匯總出口（對外仍是 from "../config"）
+  weapons/           **武器定義。新增武器只需要在這裡多一個檔案**
+    types.ts           WeaponDef：積木清單、子彈基準、冷卻、容量、起手腳本
+    basic.ts           基本射擊
+    index.ts           登錄表
   script/
-    ast.ts           積木 AST 型別定義（就是 Blockly 之後要序列化成的格式）
-    vm.ts            協程直譯器：generator，yield 出「本步要消耗的秒數」
-    presets.ts       手寫測試腳本（M1 後成為角色卡的起手腳本）
+    ast.ts             積木 AST 型別（Blockly 的序列化目標）
+    vm.ts              協程直譯器 ＋ 欠債式計時
+    presets.ts         起手腳本
+    format.ts          AST → 可顯示的行（監視器用）
   game/
-    types.ts         實體型別
-    world.ts         世界狀態容器 + 每步更新
-    spawn.ts         敵人生成
-    collision.ts     碰撞判定
+    world.ts           世界模擬：階段、敵人、子彈、經驗、碰撞
+    shield-unit.ts     **幾何護盾。獨立於武器的插件**
+    shield.ts          護盾的幾何運算（海龜走訪、點到線段距離）
+    types.ts           實體型別
+    collision.ts       敵人的均勻網格
+    input.ts           鍵盤輸入
   render/
-    renderer.ts      Canvas 2D 繪製：純粹讀 World 畫出來，不改狀態
-    hud.ts           戰場側 HUD（積木面板已由 editor.ts 接手）
-  editor.ts          Blockly 編輯器：載入／讀出腳本、積木高亮與執行次數
-  preview.ts         試射預覽：餵假 host 重用同一個 VM
-  splitter.ts        編輯器面板的拖曳／收合
-  cards.ts           升級卡定義與抽卡（保底一張積木卡）
-  levelup.ts         升等三選一的介面
+    renderer.ts        Canvas 2D 繪製：純粹讀 World，不改狀態
+    hud.ts             戰場 HUD
+    monitor.ts         遊玩時左上角的腳本監視器（逐步執行顯示）
   blocks/
-    definitions.ts   八塊積木的定義（**純資料，不依賴 Blockly**）
-    defs.ts          把定義註冊進 Blockly ＋ 深色主題
-    toolbox.ts       工具箱＝學生能用的積木清單
-    serialize.ts     Blockly 工作區 → AST（只 import type）
-    state.ts         AST → Blockly 序列化狀態（只 import type）
+    definitions.ts     積木定義（**純資料，不依賴 Blockly**）
+    defs.ts            註冊進 Blockly ＋ 語言字串 ＋ 深色主題
+    toolbox.ts         依武器的積木清單生成工具箱
+    serialize.ts       Blockly 工作區 → AST（只 import type）
+    state.ts           AST → Blockly 序列化狀態（只 import type）
+    hints.ts           積木上的代價提示
+  editor.ts          Blockly 編輯器
+  preview.ts         暫停時的試射預覽／護盾形狀預覽
+  splitter.ts        面板拖曳與收合
+  cards.ts / levelup.ts   升級卡與三選一介面
+  main.ts            組裝與主迴圈
 tools/
-  sim.ts             無頭模擬器（不進建置產物）
+  sim.ts             無頭模擬器（平衡量測）
   verify-blocks.ts   積木序列化的無頭驗證
 ```
+
+## 三個擴充點
+
+### 新增一把武器
+
+在 `src/weapons/` 加一個檔案，實作 `WeaponDef`，然後在 `index.ts` 的
+`WEAPONS` 加一行。**其餘程式碼都不必改** —— World、VM、工具箱都只讀定義。
+
+```ts
+export const MY_WEAPON: WeaponDef = {
+  id, name, description,
+  blocks: [...],        // 這把武器能用哪些積木＝它能怎麼寫
+  capacity, cooldown,
+  bullet: { speed, size, pierce, life, damage, homing, explode, split },
+  presets: [...],
+};
+```
+
+設計約束（DECISIONS.md §9d）：每把武器都應該**逼出不同的積木排列**。
+只是子彈更強、更快的武器不值得做 —— 換武器要換的是寫法，不是數字。
+新積木要同時加進 `blocks/definitions.ts` 與 `toolbox.ts` 的 `GROUPS`。
+
+### 新增一種敵人
+
+在 `config/enemies.ts` 的 `ENEMY_KINDS` 加一個原型，再到 `PHASES` 安排它
+出場。同樣的約束：新敵人要逼出的排列必須與既有的不同，否則只是多一種
+血量不同的靶子。
+
+### 調平衡
+
+一律在 `config/` 底下，不要把數值寫進邏輯。改完跑 `npm run sim -- 300`
+對照，特別確認**迴圈紅線**：巢狀迴圈的輸出必須明顯高於無迴圈的寫法。
 
 ### 為什麼 blocks/ 要拆這麼細
 

@@ -1,6 +1,6 @@
 import {
-  BULLET, CHARGE, CYCLE_COOLDOWN, ENEMY, EXPLODE, GEM, HOMING_TURN_RATE,
-  ENEMY_KINDS, MAX_BULLETS, MOBILITY, PHASES, PLAYER, SHIELD, SPAWN, SPLIT, UPGRADE,
+  CHARGE, ENEMY, EXPLODE, GEM, HOMING_TURN_RATE,
+  ENEMY_KINDS, MAX_BULLETS, MOBILITY, PHASES, PLAYER, SPAWN, SPLIT, UPGRADE,
   xpForLevel,
   type Phase,
 } from "../config";
@@ -8,7 +8,8 @@ import { scriptSpec, type Script } from "../script/ast";
 import type { AimTarget } from "../script/ast";
 import { ScriptRunner, type BulletOpts, type ScriptHost } from "../script/vm";
 import { EnemyGrid } from "./collision";
-import { buildShield, distanceToSegment, type ShieldShape } from "./shield";
+import { ShieldUnit } from "./shield-unit";
+import { DEFAULT_WEAPON, type WeaponDef } from "../weapons";
 import type { Bullet, Enemy, Gem, Player, Stats } from "./types";
 import type { Input } from "./input";
 
@@ -48,13 +49,17 @@ export class World implements ScriptHost {
   private onceSpawned = 0;
   /** 王的參考，給 HUD 畫血條 */
   boss: Enemy | null = null;
-  /** 幾何護盾（§9b）。形狀由第二段積木腳本決定，只在腳本改動時重算 */
-  shield: ShieldShape | null = null;
-  shieldHp = SHIELD.maxHp;
-  /** 破盾後的剩餘恢復時間。> 0 代表護盾目前不存在 */
-  shieldDown = 0;
-  /** 剛擋下敵人時的閃光殘量，純視覺 */
-  shieldFlash = 0;
+  /**
+   * 目前裝備的武器。決定子彈基準屬性、冷卻與腳本容量 ——
+   * World 不知道任何一把武器的細節，只讀它的定義（見 weapons/types.ts）。
+   */
+  weapon: WeaponDef = DEFAULT_WEAPON;
+
+  /**
+   * 幾何護盾。獨立於武器的插件 —— World 只負責在對的時機呼叫它，
+   * 不碰它的內部狀態（見 game/shield-unit.ts）。
+   */
+  readonly shield = new ShieldUnit();
   /** 由腳本規格換算出的移動速度倍率。火力換機動 */
   private mobility = 1;
 
@@ -68,48 +73,19 @@ export class World implements ScriptHost {
       moveDir: 0,
       invuln: 0,
     };
-    this.runner = new ScriptRunner(script, this, CYCLE_COOLDOWN);
-    this.mobility = computeMobility(script);
+    this.runner = new ScriptRunner(script, this, this.weapon.cooldown, this.weapon.bullet);
+    this.mobility = computeMobility(script, this.weapon);
   }
 
-  /** 設定護盾形狀的腳本。靜態幾何，這裡算一次就好 */
+  /** 設定護盾形狀的腳本 */
   setShieldScript(script: Script): void {
-    this.shield = buildShield(script);
-  }
-
-  /**
-   * 護盾目前是否生效。
-   *
-   * **沒閉合就完全沒有護盾** —— 不是「有缺口的護盾」。二分法比部分生效
-   * 好教：「你沒有護盾，因為圖形差 90 度沒接上」遠比「你的護盾有點漏」清楚。
-   */
-  get shieldActive(): boolean {
-    return (
-      this.shield !== null &&
-      this.shield.sides > 0 &&
-      this.shieldDown <= 0 &&
-      this.shieldClosed
-    );
-  }
-
-  /** 形狀是否閉合。沒閉合仍然會擋敵人，但拿不到 buff */
-  get shieldClosed(): boolean {
-    return this.shield !== null && this.shield.gap <= SHIELD.closeTolerance;
-  }
-
-  /**
-   * 護盾提供的傷害加成。邊數越多越強 ——
-   * 正 N 邊形的轉角是 360 ÷ N，邊數越多越難算，強度掛在邊數上剛好對應難度。
-   */
-  get shieldBuff(): number {
-    if (!this.shieldActive) return 1;
-    return 1 + this.shield!.sides * SHIELD.buffPerSide;
+    this.shield.setScript(script);
   }
 
   /** 腳本一改就要重算機動性，讓學生拖積木的當下就看得到移速變化 */
   setScript(script: Script): void {
     this.runner.reset(script);
-    this.mobility = computeMobility(script);
+    this.mobility = computeMobility(script, this.weapon);
   }
 
   /** 目前的移動速度倍率（火力換機動 × 升級卡加成），給 HUD 顯示 */
@@ -136,7 +112,17 @@ export class World implements ScriptHost {
   /** 屬性變動後要把冷卻同步進 runner */
   refreshCooldown(): void {
     // 遞減式：堆疊越多加成越小，但永遠不會把冷卻壓到零
-    this.runner.setCooldown(CYCLE_COOLDOWN / (1 + UPGRADE.haste * this.stats.haste));
+    this.runner.setCooldown(this.weapon.cooldown / (1 + UPGRADE.haste * this.stats.haste));
+  }
+
+  /**
+   * 換武器。子彈基準與冷卻跟著換，護盾完全不受影響 ——
+   * 那是獨立插件，兩者不共用任何狀態。
+   */
+  equip(weapon: WeaponDef): void {
+    this.weapon = weapon;
+    this.runner.setBaseline(weapon.bullet);
+    this.refreshCooldown();
   }
 
   /** 升到下一級還需要多少經驗 */
@@ -169,10 +155,9 @@ export class World implements ScriptHost {
     this.phaseAlert = null;
     this.onceSpawned = 0;
     this.boss = null;
-    this.shieldHp = SHIELD.maxHp;
-    this.shieldDown = 0;
+    this.shield.reset();
     this.runner.reset(script);
-    if (script) this.mobility = computeMobility(script);
+    if (script) this.mobility = computeMobility(script, this.weapon);
   }
 
   // ---- ScriptHost ----------------------------------------------------
@@ -184,7 +169,7 @@ export class World implements ScriptHost {
       this.player.x + Math.cos(a) * this.player.r,
       this.player.y + Math.sin(a) * this.player.r,
       a,
-      BULLET.damage * this.stats.damage * this.shieldBuff,
+      this.weapon.bullet.damage * this.stats.damage * this.shield.damageBuff,
       opts,
       charge,
     );
@@ -265,7 +250,7 @@ export class World implements ScriptHost {
     this.grid.rebuild(this.enemies);
     this.moveEnemies(dt);
     this.runner.update(dt); // 腳本推進 —— 子彈就是在這裡生出來的
-    this.updateShield(dt);
+    this.shield.update(dt, this.player, this.enemies);
     this.moveBullets(dt);
     this.hitEnemies();
     this.collectGems(dt);
@@ -378,59 +363,6 @@ export class World implements ScriptHost {
       e.knockY *= 1 - Math.min(1, dt * 6);
       if (e.hit > 0) e.hit -= dt;
       if (e.blocked > 0) e.blocked -= dt;
-    }
-  }
-
-  /**
-   * 護盾把靠近的敵人彈開。
-   *
-   * 判定用「敵人離某條邊夠近」而不是多邊形內外 —— 缺口因此自然成立：
-   * 沒有邊的地方就擋不住，學生畫錯的破綻直接變成敵人的通道。
-   */
-  private updateShield(dt: number): void {
-    // 閃光每幀衰減，與護盾是否存在無關
-    if (this.shieldFlash > 0) this.shieldFlash = Math.max(0, this.shieldFlash - dt * 5);
-
-    if (this.shieldDown > 0) {
-      this.shieldDown -= dt;
-      if (this.shieldDown <= 0) this.shieldHp = SHIELD.maxHp;
-      return;
-    }
-    const shape = this.shield;
-    if (!shape || shape.sides === 0 || !this.shieldClosed) return;
-
-    const px = this.player.x;
-    const py = this.player.y;
-    const reach = shape.radius + 40;
-
-    for (const e of this.enemies) {
-      if (Math.hypot(e.x - px, e.y - py) > reach) continue;
-
-      for (let i = 1; i < shape.points.length; i++) {
-        const a = shape.points[i - 1];
-        const b = shape.points[i];
-        const hit = distanceToSegment(
-          e.x - px, e.y - py,
-          a.x, a.y, b.x, b.y,
-        );
-        if (hit.dist > e.r + SHIELD.thickness) continue;
-
-        // 推出邊界並彈開
-        const push = e.r + SHIELD.thickness - hit.dist;
-        e.x += hit.nx * push;
-        e.y += hit.ny * push;
-        e.knockX = hit.nx * SHIELD.knockback;
-        e.knockY = hit.ny * SHIELD.knockback;
-
-        this.shieldHp -= SHIELD.hitCost * dt * 60;
-        this.shieldFlash = 1;
-        if (this.shieldHp <= 0) {
-          this.shieldHp = 0;
-          this.shieldDown = SHIELD.regenDelay;
-          return;
-        }
-        break; // 一個敵人一幀只被一條邊彈開
-      }
     }
   }
 
@@ -638,19 +570,22 @@ function chargeMultiplier(gap: number): number {
  * 負載為 0（全部維持預設規格）時倍率為 1。提高規格要用機動性支付，
  * 降低規格則換到更快的走位 —— 後者是完全正當的另一種 build，不是懲罰。
  */
-function computeMobility(script: Script): number {
+function computeMobility(script: Script, weapon: WeaponDef): number {
+  // 基準取自武器，而非全域常數 —— 不同武器的「標準規格」本來就不同，
+  // 超過自己的基準才算加規格、才要付機動代價
+  const base = weapon.bullet;
   const spec = scriptSpec(script.body, {
-    speed: BULLET.speed,
-    size: BULLET.size,
-    pierce: BULLET.pierce,
-    life: BULLET.life,
+    speed: base.speed,
+    size: base.size,
+    pierce: base.pierce,
+    life: base.life,
   });
 
   const load =
-    MOBILITY.speedWeight * ((spec.speed - BULLET.speed) / BULLET.speed) +
-    MOBILITY.sizeWeight * ((spec.size - BULLET.size) / BULLET.size) +
-    (MOBILITY.pierceWeight * (spec.pierce - BULLET.pierce)) / 2 +
-    MOBILITY.lifeWeight * ((spec.life - BULLET.life) / BULLET.life);
+    MOBILITY.speedWeight * ((spec.speed - base.speed) / base.speed) +
+    MOBILITY.sizeWeight * ((spec.size - base.size) / base.size) +
+    (MOBILITY.pierceWeight * (spec.pierce - base.pierce)) / 2 +
+    MOBILITY.lifeWeight * ((spec.life - base.life) / base.life);
 
   const rate = load >= 0 ? MOBILITY.penaltyPerLoad : MOBILITY.bonusPerLoad;
   return Math.max(MOBILITY.minMultiplier, Math.min(MOBILITY.maxMultiplier, 1 - load * rate));

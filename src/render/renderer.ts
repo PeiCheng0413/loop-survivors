@@ -181,7 +181,9 @@ export class Renderer {
    */
   private drawShield(world: World): void {
     const shape = world.shield;
-    if (!shape || shape.sides === 0) return;
+    // 沒閉合就什麼都不畫：戰場上不存在「半個護盾」。
+    // 學生要看自己畫錯在哪，是在暫停時的預覽視窗裡看（見 preview.ts）。
+    if (!shape || shape.sides === 0 || !world.shieldClosed) return;
     const ctx = this.ctx;
     const px = world.player.x;
     const py = world.player.y;

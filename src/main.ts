@@ -73,6 +73,7 @@ const shapeEditor = new Editor(
   shapeRoot,
   () => {
     world.setShieldScript(shapeEditor.read());
+    preview.setShape(world.shield);
     updateShapeStatus();
   },
   SHAPE_TOOLBOX,
@@ -113,6 +114,8 @@ tabs.addEventListener("click", (e) => {
   blocklyRoot.classList.toggle("hidden", isShape);
   shapeRoot.classList.toggle("hidden", !isShape);
   shapeStatus.classList.toggle("hidden", !isShape);
+  // 暫停預覽跟著分頁切換內容：看護盾就顯示形狀，看攻擊就顯示彈幕
+  preview.setMode(isShape ? "shape" : "attack");
   for (const b of tabs.querySelectorAll("button")) {
     b.classList.toggle("active", b === btn);
   }

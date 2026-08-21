@@ -75,9 +75,19 @@ export class World implements ScriptHost {
     this.shield = buildShield(script);
   }
 
-  /** 護盾目前是否生效（有邊、沒破、且形狀閉合） */
+  /**
+   * 護盾目前是否生效。
+   *
+   * **沒閉合就完全沒有護盾** —— 不是「有缺口的護盾」。二分法比部分生效
+   * 好教：「你沒有護盾，因為圖形差 90 度沒接上」遠比「你的護盾有點漏」清楚。
+   */
   get shieldActive(): boolean {
-    return this.shield !== null && this.shield.sides > 0 && this.shieldDown <= 0;
+    return (
+      this.shield !== null &&
+      this.shield.sides > 0 &&
+      this.shieldDown <= 0 &&
+      this.shieldClosed
+    );
   }
 
   /** 形狀是否閉合。沒閉合仍然會擋敵人，但拿不到 buff */
@@ -90,9 +100,7 @@ export class World implements ScriptHost {
    * 正 N 邊形的轉角是 360 ÷ N，邊數越多越難算，強度掛在邊數上剛好對應難度。
    */
   get shieldBuff(): number {
-    // 沒閉合就沒有 buff：缺口的代價不能只有「比較容易被打到」，
-    // 否則學生會覺得算對算錯差不多
-    if (!this.shieldActive || !this.shieldClosed) return 1;
+    if (!this.shieldActive) return 1;
     return 1 + this.shield!.sides * SHIELD.buffPerSide;
   }
 
@@ -384,7 +392,7 @@ export class World implements ScriptHost {
       return;
     }
     const shape = this.shield;
-    if (!shape || shape.sides === 0) return;
+    if (!shape || shape.sides === 0 || !this.shieldClosed) return;
 
     const px = this.player.x;
     const py = this.player.y;

@@ -1,5 +1,7 @@
 import { CHARGE, CYCLE_COOLDOWN } from "./config";
 import type { AimTarget, Script } from "./script/ast";
+import type { ShieldShape } from "./game/shield";
+import { SHIELD } from "./config";
 import { ScriptRunner, type BulletOpts, type ScriptHost } from "./script/vm";
 
 const DEG = Math.PI / 180;
@@ -38,6 +40,9 @@ export class Preview implements ScriptHost {
   private w = 0;
   private h = 0;
   private dpr = 1;
+  /** 預覽的內容：攻擊彈幕，或護盾形狀 */
+  private mode: "attack" | "shape" = "attack";
+  private shape: ShieldShape | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -45,6 +50,18 @@ export class Preview implements ScriptHost {
     if (!ctx) throw new Error("預覽畫布取得 2D context 失敗");
     this.ctx = ctx;
     this.runner = new ScriptRunner({ name: "", capacity: 0, body: [] }, this, CYCLE_COOLDOWN);
+  }
+
+  setMode(mode: "attack" | "shape"): void {
+    this.mode = mode;
+  }
+
+  /**
+   * 護盾形狀。戰場上沒閉合就完全不顯示，所以學生只能在這裡看見自己畫了什麼 ——
+   * 這個預覽因此不是輔助，是唯一的除錯管道。
+   */
+  setShape(shape: ShieldShape | null): void {
+    this.shape = shape;
   }
 
   setScript(script: Script): void {
@@ -91,8 +108,72 @@ export class Preview implements ScriptHost {
 
   // ---- 更新與繪製 ------------------------------------------------------
 
+  /**
+   * 畫出目前的護盾形狀，並把缺口標出來。
+   *
+   * 起點與終點各標一個點、中間拉一條紅色虛線 —— 學生看到那條線就知道
+   * 「我少轉了一個角」，不必去讀任何數字。
+   */
+  private drawShape(): void {
+    const ctx = this.ctx;
+    const shape = this.shape;
+    if (!shape || shape.sides === 0) {
+      ctx.fillStyle = "#6b7c94";
+      ctx.font = "13px 'PingFang TC', system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("還沒有形狀", this.w / 2, this.h / 2);
+      ctx.textAlign = "left";
+      return;
+    }
+
+    const closed = shape.gap <= SHIELD.closeTolerance;
+    const scale = Math.min(this.w, this.h) / (shape.radius * 2.4);
+    ctx.save();
+    ctx.translate(this.w / 2, this.h / 2);
+    ctx.scale(scale, scale);
+
+    // 玩家位置：護盾以形心置中，這個點就是玩家會站的地方
+    ctx.fillStyle = "#e8f4ff";
+    ctx.beginPath();
+    ctx.arc(0, 0, 6 / scale, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = closed ? "#5ce1ff" : "#ffb37a";
+    ctx.lineWidth = 3 / scale;
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(shape.points[0].x, shape.points[0].y);
+    for (let i = 1; i < shape.points.length; i++) {
+      ctx.lineTo(shape.points[i].x, shape.points[i].y);
+    }
+    ctx.stroke();
+
+    if (!closed) {
+      const a = shape.points[0];
+      const b = shape.points[shape.points.length - 1];
+      ctx.setLineDash([6 / scale, 6 / scale]);
+      ctx.strokeStyle = "#ff4d5a";
+      ctx.lineWidth = 2 / scale;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      for (const [p, color] of [[a, "#7dffb0"], [b, "#ff4d5a"]] as const) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 5 / scale, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    ctx.restore();
+  }
+
   step(dt: number): void {
     if (this.w === 0) return;
+    if (this.mode === "shape") return;
     this.runner.update(dt);
     // 預覽自己的執行軌跡不拿來點亮積木（那是主遊戲的工作），
     // 但仍要清掉，否則會一直累積到上限
@@ -116,6 +197,11 @@ export class Preview implements ScriptHost {
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.fillStyle = "#0c1220";
     ctx.fillRect(0, 0, this.w, this.h);
+
+    if (this.mode === "shape") {
+      this.drawShape();
+      return;
+    }
 
     // 讓 ±VIEW_RADIUS 的範圍剛好塞滿畫布，形狀才不會被裁掉
     const scale = Math.min(this.w, this.h) / (VIEW_RADIUS * 2);

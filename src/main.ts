@@ -6,6 +6,7 @@ import { Input } from "./game/input";
 import { World } from "./game/world";
 import { Hud } from "./render/hud";
 import { Renderer } from "./render/renderer";
+import { ScriptMonitor } from "./render/monitor";
 import { Splitter } from "./splitter";
 import { SHAPE_TOOLBOX } from "./blocks/toolbox";
 import { Preview } from "./preview";
@@ -20,6 +21,7 @@ const blocklyRoot = document.querySelector<HTMLElement>("#blockly")!;
 const shapeRoot = document.querySelector<HTMLElement>("#blockly-shape")!;
 const tabs = document.querySelector<HTMLElement>("#editor-tabs")!;
 const panelStatus = document.querySelector<HTMLElement>("#panel-status")!;
+const monitorRoot = document.querySelector<HTMLElement>("#monitor")!;
 const headAttack = document.querySelector<HTMLElement>("#head-attack")!;
 const headShape = document.querySelector<HTMLElement>("#head-shape")!;
 const previewCanvas = document.querySelector<HTMLCanvasElement>("#preview-canvas")!;
@@ -49,6 +51,7 @@ const renderer = new Renderer(canvas);
 const hud = new Hud(hudRoot);
 const input = new Input();
 const preview = new Preview(previewCanvas);
+const monitor = new ScriptMonitor(monitorRoot);
 
 const world = new World(PRESETS[0]);
 
@@ -65,6 +68,7 @@ const editor = new Editor(blocklyRoot, () => {
   const script = editor.read();
   world.setScript(script);
   preview.setScript(script);
+  monitor.setScript(script);
   updatePanelStatus();
 });
 
@@ -332,8 +336,13 @@ function frame(now: number): void {
   if (shapeTab) updatePanelStatus();
 
   renderer.draw(world, viewW, viewH, dpr);
+  // 軌跡只能取一次，編輯器與監視器共用同一份
+  const trace = world.runner.drainTrace();
   // 暫停時傳 dt=0 凍結餘輝 —— 空白鍵就成了「定格檢視腳本跑到哪」的工具
-  editor.updateHeat(world.runner.drainTrace(), paused ? 0 : dt, world.runner.cycles);
+  editor.updateHeat(trace, paused ? 0 : dt, world.runner.cycles);
+  // 監視器只在遊玩時出現；暫停時看的是左邊真正的積木
+  monitor.setVisible(!paused && started);
+  monitor.update(trace, dt, world.runner.cycles);
   hud.update(world, fps, paused, started);
   input.endFrame();
 }

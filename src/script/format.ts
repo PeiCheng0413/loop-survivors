@@ -10,6 +10,30 @@ export interface ScriptLine {
   id: string;
   depth: number;
   text: string;
+  /** 積木類別，用來上色。與工具箱的分類一致，學生的顏色記憶可以沿用 */
+  category: "control" | "action" | "state" | "rare" | "move";
+}
+
+function categoryOf(kind: Node["kind"]): ScriptLine["category"] {
+  switch (kind) {
+    case "repeat":
+    case "wait":
+      return "control";
+    case "fire":
+    case "turn":
+    case "turnByIndex":
+    case "aim":
+      return "action";
+    case "setHoming":
+    case "setExplode":
+    case "setSplit":
+      return "rare";
+    case "forward":
+    case "right":
+      return "move";
+    default:
+      return "state";
+  }
 }
 
 const AIM_LABEL = {
@@ -42,7 +66,7 @@ function label(node: Node): string {
 
 export function toLines(nodes: Node[], depth = 0, out: ScriptLine[] = []): ScriptLine[] {
   for (const node of nodes) {
-    out.push({ id: node.id, depth, text: label(node) });
+    out.push({ id: node.id, depth, text: label(node), category: categoryOf(node.kind) });
     if (node.kind === "repeat") toLines(node.body, depth + 1, out);
   }
   return out;

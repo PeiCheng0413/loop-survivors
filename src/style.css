@@ -558,3 +558,62 @@ html, body {
   color: #ffb3b8;
 }
 
+
+/* 遊玩時的腳本監視器：去背的小積木疊在戰場左上角，執行時逐塊發亮。
+
+   積木面板在遊戲中是收起來的，而暫停時 VM 不會執行 —— 沒有這個的話，
+   「看得見迴圈在繞圈」這個教學紅利在遊玩中完全看不到。 */
+#monitor {
+  position: fixed;
+  left: calc(var(--editor-w) + 16px);
+  top: 62px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  pointer-events: none;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+#monitor.hidden {
+  display: none;
+}
+
+.mon-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  color: #fff;
+  /* 去背：只有淡淡的底色與邊，不遮住後面的戰場 */
+  background: rgba(12, 18, 30, 0.35);
+  border: 1px solid transparent;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  transition: none;
+  align-self: flex-start;
+}
+
+/* 顏色沿用工具箱的分類，學生的顏色記憶可以直接遷移 */
+.mon-line.control { border-color: rgba(255, 171, 25, 0.5); }
+.mon-line.action { border-color: rgba(76, 151, 255, 0.5); }
+.mon-line.state { border-color: rgba(153, 102, 255, 0.5); }
+.mon-line.rare { border-color: rgba(255, 179, 0, 0.6); }
+.mon-line.move { border-color: rgba(76, 191, 86, 0.5); }
+
+.mon-line.hot {
+  background: rgba(255, 200, 60, 0.22);
+}
+
+/* 執行波前緣：目前正在跑的那一塊 */
+.mon-line.head {
+  background: rgba(255, 200, 60, 0.42);
+  box-shadow: 0 0 12px rgba(255, 200, 60, 0.45);
+}
+
+.mon-count {
+  font-size: 11px;
+  color: #ffc83c;
+  opacity: 0.9;
+}

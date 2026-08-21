@@ -53,7 +53,10 @@ export const PRESETS: Script[] = [
     // 會不會變強** —— 這兩張卡並排比較，答案就一目瞭然。
     name: "連射狙擊",
     capacity: 12,
-    body: [aim("nearest"), setSpeed(560), setSize(6), setPierce(1), repeat(4, [fire(), wait(0.08)])],
+    // 等待值必須是 0.05 的倍數 —— 積木欄位的精度就是 0.05，
+    // 填別的值會被 Blockly 靜靜改掉，讓模擬器與實際遊戲的數據對不上
+
+    body: [aim("nearest"), setSpeed(560), setSize(6), setPierce(1), repeat(4, [fire(), wait(0.1)])],
   },
   {
     // 示範迴圈變數與累加器：旋轉量隨圈數遞增畫出螺旋，
@@ -72,13 +75,13 @@ export const PRESETS: Script[] = [
 ];
 
 /**
- * 箭矢的預設路徑：正六邊形。
+ * 護盾的預設形狀：正六邊形。
  *
  * 360 ÷ 6 = 60 —— 這個關係就是整個練習的重點，起手腳本先示範一次，
- * 學生改成 5 或 8 就會發現轉角必須跟著換，否則圖形不會閉合。
+ * 學生改成 5 或 8 就會發現轉角必須跟著換，否則護盾不會閉合、會留下缺口。
  */
-export const ARROW_PRESET: Script = {
-  name: "箭矢路徑",
+export const SHIELD_PRESET: Script = {
+  name: "護盾形狀",
   capacity: 10,
   body: [repeat(6, [forward(60), right(60)])],
 };

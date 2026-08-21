@@ -33,6 +33,9 @@ export interface Enemy {
    * 否則他只會覺得敵人很硬，不會意識到那是門檻機制、更不會想到要改程式。
    */
   blocked: number;
+  /** 被護盾彈開的速度，會快速衰減 */
+  knockX: number;
+  knockY: number;
 }
 
 export interface Bullet {

@@ -1,13 +1,14 @@
 import {
   BULLET, CHARGE, CYCLE_COOLDOWN, ENEMY, EXPLODE, GEM, HOMING_TURN_RATE,
-  ENEMY_KINDS, MAX_BULLETS, MOBILITY, PHASES, PLAYER, SPAWN, SPLIT, UPGRADE, xpForLevel,
+  ENEMY_KINDS, MAX_BULLETS, MOBILITY, PHASES, PLAYER, SHIELD, SPAWN, SPLIT, UPGRADE,
+  xpForLevel,
   type Phase,
 } from "../config";
 import { scriptSpec, type Script } from "../script/ast";
 import type { AimTarget } from "../script/ast";
 import { ScriptRunner, type BulletOpts, type ScriptHost } from "../script/vm";
-import { ArrowUnit } from "./arrow";
 import { EnemyGrid } from "./collision";
+import { buildShield, distanceToSegment, type ShieldShape } from "./shield";
 import type { Bullet, Enemy, Gem, Player, Stats } from "./types";
 import type { Input } from "./input";
 
@@ -47,8 +48,11 @@ export class World implements ScriptHost {
   private onceSpawned = 0;
   /** 王的參考，給 HUD 畫血條 */
   boss: Enemy | null = null;
-  /** 飛行箭矢（§9b 驗證原型）。尚未做成解鎖，開局就存在 */
-  arrow: ArrowUnit | null = null;
+  /** 幾何護盾（§9b）。形狀由第二段積木腳本決定，只在腳本改動時重算 */
+  shield: ShieldShape | null = null;
+  shieldHp = SHIELD.maxHp;
+  /** 破盾後的剩餘恢復時間。> 0 代表護盾目前不存在 */
+  shieldDown = 0;
   /** 由腳本規格換算出的移動速度倍率。火力換機動 */
   private mobility = 1;
 
@@ -66,10 +70,30 @@ export class World implements ScriptHost {
     this.mobility = computeMobility(script);
   }
 
-  /** 設定箭矢的路徑腳本。第一次呼叫時才建立箭矢 */
-  setArrowScript(script: Script): void {
-    if (!this.arrow) this.arrow = new ArrowUnit(this, script);
-    else this.arrow.setScript(script);
+  /** 設定護盾形狀的腳本。靜態幾何，這裡算一次就好 */
+  setShieldScript(script: Script): void {
+    this.shield = buildShield(script);
+  }
+
+  /** 護盾目前是否生效（有邊、沒破、且形狀閉合） */
+  get shieldActive(): boolean {
+    return this.shield !== null && this.shield.sides > 0 && this.shieldDown <= 0;
+  }
+
+  /** 形狀是否閉合。沒閉合仍然會擋敵人，但拿不到 buff */
+  get shieldClosed(): boolean {
+    return this.shield !== null && this.shield.gap <= SHIELD.closeTolerance;
+  }
+
+  /**
+   * 護盾提供的傷害加成。邊數越多越強 ——
+   * 正 N 邊形的轉角是 360 ÷ N，邊數越多越難算，強度掛在邊數上剛好對應難度。
+   */
+  get shieldBuff(): number {
+    // 沒閉合就沒有 buff：缺口的代價不能只有「比較容易被打到」，
+    // 否則學生會覺得算對算錯差不多
+    if (!this.shieldActive || !this.shieldClosed) return 1;
+    return 1 + this.shield!.sides * SHIELD.buffPerSide;
   }
 
   /** 腳本一改就要重算機動性，讓學生拖積木的當下就看得到移速變化 */
@@ -135,6 +159,8 @@ export class World implements ScriptHost {
     this.phaseAlert = null;
     this.onceSpawned = 0;
     this.boss = null;
+    this.shieldHp = SHIELD.maxHp;
+    this.shieldDown = 0;
     this.runner.reset(script);
     if (script) this.mobility = computeMobility(script);
   }
@@ -148,7 +174,7 @@ export class World implements ScriptHost {
       this.player.x + Math.cos(a) * this.player.r,
       this.player.y + Math.sin(a) * this.player.r,
       a,
-      BULLET.damage * this.stats.damage,
+      BULLET.damage * this.stats.damage * this.shieldBuff,
       opts,
       charge,
     );
@@ -229,7 +255,7 @@ export class World implements ScriptHost {
     this.grid.rebuild(this.enemies);
     this.moveEnemies(dt);
     this.runner.update(dt); // 腳本推進 —— 子彈就是在這裡生出來的
-    this.arrow?.update(dt);
+    this.updateShield(dt);
     this.moveBullets(dt);
     this.hitEnemies();
     this.collectGems(dt);
@@ -304,6 +330,8 @@ export class World implements ScriptHost {
       speed: proto.speed * (0.85 + Math.random() * 0.3),
       hit: 0,
       blocked: 0,
+      knockX: 0,
+      knockY: 0,
     };
   }
 
@@ -333,10 +361,62 @@ export class World implements ScriptHost {
         }
       });
 
-      e.x += (dx * e.speed + sx * ENEMY.separation) * dt;
-      e.y += (dy * e.speed + sy * ENEMY.separation) * dt;
+      e.x += (dx * e.speed + sx * ENEMY.separation + e.knockX) * dt;
+      e.y += (dy * e.speed + sy * ENEMY.separation + e.knockY) * dt;
+      // 彈開的速度快速衰減，看起來像被推了一下而不是被吹飛
+      e.knockX *= 1 - Math.min(1, dt * 6);
+      e.knockY *= 1 - Math.min(1, dt * 6);
       if (e.hit > 0) e.hit -= dt;
       if (e.blocked > 0) e.blocked -= dt;
+    }
+  }
+
+  /**
+   * 護盾把靠近的敵人彈開。
+   *
+   * 判定用「敵人離某條邊夠近」而不是多邊形內外 —— 缺口因此自然成立：
+   * 沒有邊的地方就擋不住，學生畫錯的破綻直接變成敵人的通道。
+   */
+  private updateShield(dt: number): void {
+    if (this.shieldDown > 0) {
+      this.shieldDown -= dt;
+      if (this.shieldDown <= 0) this.shieldHp = SHIELD.maxHp;
+      return;
+    }
+    const shape = this.shield;
+    if (!shape || shape.sides === 0) return;
+
+    const px = this.player.x;
+    const py = this.player.y;
+    const reach = shape.radius + 40;
+
+    for (const e of this.enemies) {
+      if (Math.hypot(e.x - px, e.y - py) > reach) continue;
+
+      for (let i = 1; i < shape.points.length; i++) {
+        const a = shape.points[i - 1];
+        const b = shape.points[i];
+        const hit = distanceToSegment(
+          e.x - px, e.y - py,
+          a.x, a.y, b.x, b.y,
+        );
+        if (hit.dist > e.r + SHIELD.thickness) continue;
+
+        // 推出邊界並彈開
+        const push = e.r + SHIELD.thickness - hit.dist;
+        e.x += hit.nx * push;
+        e.y += hit.ny * push;
+        e.knockX = hit.nx * SHIELD.knockback;
+        e.knockY = hit.ny * SHIELD.knockback;
+
+        this.shieldHp -= SHIELD.hitCost * dt * 60;
+        if (this.shieldHp <= 0) {
+          this.shieldHp = 0;
+          this.shieldDown = SHIELD.regenDelay;
+          return;
+        }
+        break; // 一個敵人一幀只被一條邊彈開
+      }
     }
   }
 

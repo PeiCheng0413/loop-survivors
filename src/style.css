@@ -84,13 +84,13 @@ html, body {
 }
 
 #blockly,
-#blockly-arrow {
+#blockly-shape {
   flex: 1;
   min-height: 0;
 }
 
 #blockly.hidden,
-#blockly-arrow.hidden {
+#blockly-shape.hidden {
   display: none;
 }
 
@@ -532,4 +532,28 @@ html, body {
   font-size: 12px;
   font-weight: 400;
   color: var(--dim);
+}
+
+/* 護盾形狀的即時回饋。「還差幾度」是這個練習的核心 ——
+   只說「沒有生效」學生只能亂試，說出差額他才算得出正確答案。 */
+#shape-status {
+  flex-shrink: 0;
+  padding: 9px 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  border-top: 1px solid var(--border);
+}
+
+#shape-status.hidden {
+  display: none;
+}
+
+#shape-status.ok {
+  color: #9df5c4;
+  background: rgba(20, 50, 36, 0.6);
+}
+
+#shape-status.warn {
+  color: #ffd8a8;
+  background: rgba(58, 40, 16, 0.6);
 }

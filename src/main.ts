@@ -6,18 +6,19 @@ import { World } from "./game/world";
 import { Hud } from "./render/hud";
 import { Renderer } from "./render/renderer";
 import { Splitter } from "./splitter";
-import { ARROW_TOOLBOX } from "./blocks/toolbox";
+import { SHAPE_TOOLBOX } from "./blocks/toolbox";
 import { Preview } from "./preview";
 import { LevelUp } from "./levelup";
 import { drawCards, type CardContext } from "./cards";
-import { ARROW_PRESET, PRESETS } from "./script/presets";
+import { SHIELD_PRESET, PRESETS } from "./script/presets";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
 const hudRoot = document.querySelector<HTMLElement>("#hud")!;
 const editorRoot = document.querySelector<HTMLElement>("#editor")!;
 const blocklyRoot = document.querySelector<HTMLElement>("#blockly")!;
-const arrowRoot = document.querySelector<HTMLElement>("#blockly-arrow")!;
+const shapeRoot = document.querySelector<HTMLElement>("#blockly-shape")!;
 const tabs = document.querySelector<HTMLElement>("#editor-tabs")!;
+const shapeStatus = document.querySelector<HTMLElement>("#shape-status")!;
 const previewCanvas = document.querySelector<HTMLCanvasElement>("#preview-canvas")!;
 const previewPanel = document.querySelector<HTMLElement>("#preview")!;
 const levelUpRoot = document.querySelector<HTMLElement>("#levelup")!;
@@ -63,30 +64,59 @@ const editor = new Editor(blocklyRoot, () => {
 });
 
 /**
- * 箭矢路徑的編輯器（§9b 驗證原型）。
+ * 護盾形狀的編輯器（§9b）。
  *
- * 與攻擊腳本共用同一個 Editor 類別，只是換一套工具箱與容量 ——
- * 這正是「雙腳本能不能運作」要驗證的第一件事：兩個 Blockly 工作區
- * 在同一頁會不會互相干擾。
+ * 與攻擊腳本共用同一個 Editor 類別，只是換一套工具箱與容量。
+ * 護盾是靜態幾何，所以這裡改動時只需要重算一次頂點。
  */
-const arrowEditor = new Editor(
-  arrowRoot,
-  () => world.setArrowScript(arrowEditor.read()),
-  ARROW_TOOLBOX,
+const shapeEditor = new Editor(
+  shapeRoot,
+  () => {
+    world.setShieldScript(shapeEditor.read());
+    updateShapeStatus();
+  },
+  SHAPE_TOOLBOX,
 );
-arrowEditor.load(ARROW_PRESET);
+
+/**
+ * 護盾形狀的即時回饋。
+ *
+ * 「還差幾度」是這個練習的核心 —— 只說「沒有生效」的話，學生只能亂試；
+ * 說出差額，他才有辦法自己算出正確的轉角。
+ */
+function updateShapeStatus(): void {
+  const shape = world.shield;
+  if (!shape || shape.sides === 0) {
+    shapeStatus.className = "warn";
+    shapeStatus.textContent = "還沒有形狀 —— 用「前進」與「右轉」畫一個封閉圖形";
+    return;
+  }
+  if (world.shieldClosed) {
+    shapeStatus.className = "ok";
+    shapeStatus.textContent =
+      `✅ 護盾閉合　${shape.sides} 邊形　傷害 +${Math.round(shape.sides * 4)}%`;
+    return;
+  }
+  const short = 360 - (((shape.turnTotal % 360) + 360) % 360);
+  shapeStatus.className = "warn";
+  shapeStatus.textContent =
+    `⚠️ 有缺口 ${shape.gap.toFixed(0)}px，敵人穿得過來，也拿不到加成　·　` +
+    `轉角總和 ${shape.turnTotal}°，還差 ${short}°`;
+}
+shapeEditor.load(SHIELD_PRESET);
 
 // 分頁切換。隱藏的工作區量測會得到 0，切回來時必須重新 resize
 tabs.addEventListener("click", (e) => {
   const btn = (e.target as HTMLElement).closest("button");
   if (!btn) return;
-  const isArrow = btn.dataset.tab === "arrow";
-  blocklyRoot.classList.toggle("hidden", isArrow);
-  arrowRoot.classList.toggle("hidden", !isArrow);
+  const isShape = btn.dataset.tab === "shape";
+  blocklyRoot.classList.toggle("hidden", isShape);
+  shapeRoot.classList.toggle("hidden", !isShape);
+  shapeStatus.classList.toggle("hidden", !isShape);
   for (const b of tabs.querySelectorAll("button")) {
     b.classList.toggle("active", b === btn);
   }
-  (isArrow ? arrowEditor : editor).resize();
+  (isShape ? shapeEditor : editor).resize();
 });
 
 function loadPreset(i: number): void {
@@ -120,7 +150,7 @@ function resize(): void {
   // 收合時容器是 display:none，量測會得到 0，跳過即可
   if (splitter.width > 0) {
     editor.resize();
-    arrowEditor.resize();
+    shapeEditor.resize();
     if (paused) preview.resize();
   }
 }

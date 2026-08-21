@@ -1,3 +1,4 @@
+import { SHIELD } from "../config";
 import type { World } from "../game/world";
 
 const DEG = Math.PI / 180;
@@ -16,7 +17,8 @@ const COLOR = {
   blocked: "#5a6a80",
   bullet: "#5ce1ff",
   gem: "#7dffb0",
-  arrow: "#4CBF56",
+  shield: "#5ce1ff",
+  shieldDown: "#6b7c94",
 };
 
 const GRID = 80;
@@ -63,7 +65,7 @@ export class Renderer {
     this.drawGems(world);
     this.drawEnemies(world);
     this.drawBullets(world);
-    this.drawArrow(world);
+    this.drawShield(world);
     this.drawPlayer(world);
 
     ctx.restore();
@@ -172,47 +174,52 @@ export class Renderer {
   }
 
   /**
-   * 飛行箭矢與它的軌跡殘影。
+   * 幾何護盾。
    *
-   * 殘影是這個功能的核心視覺：學生畫的正 n 邊形必須**看得見**，
-   * 否則「轉角算對了沒」只能靠猜。沒有殘影的話，這個練習等於沒有回饋。
+   * 沒有閉合的形狀就是畫出來有缺口 —— 不做任何特殊處理，
+   * 學生的破綻因此是看得見的，而不是「沒有生效」。
    */
-  private drawArrow(world: World): void {
-    const arrow = world.arrow;
-    if (!arrow) return;
+  private drawShield(world: World): void {
+    const shape = world.shield;
+    if (!shape || shape.sides === 0) return;
     const ctx = this.ctx;
+    const px = world.player.x;
+    const py = world.player.y;
+    const active = world.shieldActive;
+    const strength = world.shieldHp / SHIELD.maxHp;
 
-    if (arrow.trail.length > 1) {
-      ctx.strokeStyle = COLOR.arrow;
-      ctx.lineWidth = 2;
-      ctx.lineJoin = "round";
-      for (let i = 1; i < arrow.trail.length; i++) {
-        const a = arrow.trail[i - 1];
-        const b = arrow.trail[i];
-        // 越舊越淡，形狀因此有「正在被畫出來」的方向感
-        ctx.globalAlpha = Math.min(0.75, (b.life / 2.4) * 0.75);
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
-        ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
+    ctx.save();
+    ctx.translate(px, py);
+
+    if (active) {
+      // 外層光暈用加法混色，血量越低越暗 —— 不用數字就看得出護盾快破了
+      ctx.globalCompositeOperation = "lighter";
+      ctx.strokeStyle = COLOR.shield;
+      ctx.lineWidth = SHIELD.thickness * 2;
+      ctx.globalAlpha = 0.1 + strength * 0.18;
+      this.tracePath(shape.points);
+      ctx.stroke();
+      ctx.globalCompositeOperation = "source-over";
     }
 
-    // 箭矢本體畫成三角形，尖端指著目前朝向 —— 學生看得出「右轉」轉到哪了
-    const a = arrow.dir * DEG;
-    ctx.save();
-    ctx.translate(arrow.x, arrow.y);
-    ctx.rotate(a);
-    ctx.fillStyle = COLOR.arrow;
-    ctx.beginPath();
-    ctx.moveTo(10, 0);
-    ctx.lineTo(-6, 6);
-    ctx.lineTo(-3, 0);
-    ctx.lineTo(-6, -6);
-    ctx.closePath();
-    ctx.fill();
+    ctx.globalAlpha = active ? 0.55 + strength * 0.45 : 0.18;
+    ctx.strokeStyle = active ? COLOR.shield : COLOR.shieldDown;
+    ctx.lineWidth = active ? 3 : 2;
+    // 破盾期間畫成虛線，與「還在但快破了」明確區分
+    if (!active) ctx.setLineDash([6, 8]);
+    this.tracePath(shape.points);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+
     ctx.restore();
+  }
+
+  private tracePath(points: { x: number; y: number }[]): void {
+    const ctx = this.ctx;
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
   }
 
   private drawPlayer(world: World): void {

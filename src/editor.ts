@@ -1,5 +1,4 @@
 import * as Blockly from "blockly/core";
-import { HEAT_DECAY } from "./config";
 import { THEME } from "./blocks/defs";
 import { buildToolbox, TOOLBOX } from "./blocks/toolbox";
 import { workspaceToScript } from "./blocks/serialize";
@@ -17,8 +16,6 @@ import type { Script } from "./script/ast";
  */
 export class Editor {
   readonly workspace: Blockly.WorkspaceSvg;
-  private heat = new Map<string, number>();
-  private headId: string | null = null;
   private current: Script;
   /** 本輪累積中的執行次數 */
   private counts = new Map<string, number>();
@@ -70,12 +67,10 @@ export class Editor {
     this.rare.clear();
     this.workspace.options.maxInstances = {};
     this.workspace.updateToolbox(this.baseToolbox);
-    this.heat.clear();
     this.counts.clear();
     this.shown.clear();
     this.badges.clear(); // 積木會被整批換掉，舊的 SVG 節點跟著消失
     this.lastCycle = -1;
-    this.headId = null;
     Blockly.serialization.workspaces.load(scriptToState(script), this.workspace);
     this.updateHints();
   }
@@ -173,53 +168,29 @@ export class Editor {
   }
 
   /**
-   * 依執行軌跡點亮積木。dt 傳 0 代表凍結（暫停時定格檢視）。
+   * 累積本輪各積木的執行次數。
    *
-   * 濾鏡只套在積木自己的 path 上，不套整個 SVG 群組 —— 巢狀積木在
-   * Blockly 裡是父積木的子元素，套在群組上會讓亮度滲透到內層積木，
-   * 看起來像整個迴圈都在執行。
+   * **只做記帳，不碰 DOM** —— 遊戲進行中積木面板是收起來的，
+   * 此時寫入 SVG 濾鏡與標籤純屬浪費。畫面上的逐步執行由左上角的
+   * 監視器負責（見 render/monitor.ts）。
    */
-  updateHeat(trace: string[], dt: number, cycle: number): void {
+  trackCounts(trace: string[], cycle: number): void {
     for (const id of trace) {
-      this.heat.set(id, 1);
       this.counts.set(id, (this.counts.get(id) ?? 0) + 1);
     }
-    if (trace.length > 0) this.headId = trace[trace.length - 1];
-
-    // 一輪跑完就把計數換到顯示欄位，冷卻期間數字不動
+    // 一輪跑完就把計數換到顯示欄位，冷卻期間數字維持不變
     if (cycle !== this.lastCycle) {
       if (this.counts.size > 0) {
         this.shown = new Map(this.counts);
         this.counts.clear();
-        this.renderBadges();
       }
       this.lastCycle = cycle;
     }
+  }
 
-    const fade = dt / HEAT_DECAY;
-    // 邊走訪邊 delete 目前這個 key 對 Map 是安全的，不需要先複製一份
-    for (const [id, prev] of this.heat) {
-      let h = prev;
-      if (h > 0 && fade > 0) {
-        h = Math.max(0, h - fade);
-        this.heat.set(id, h);
-      }
-
-      const block = this.workspace.getBlockById(id) as Blockly.BlockSvg | null;
-      const path = block?.pathObject?.svgPath as SVGElement | undefined;
-      if (path) {
-        if (h <= 0) {
-          path.style.filter = "";
-        } else if (id === this.headId) {
-          path.style.filter =
-            `brightness(${(1 + h * 0.5).toFixed(2)}) drop-shadow(0 0 9px rgba(255, 225, 130, ${h.toFixed(2)}))`;
-        } else {
-          path.style.filter = `brightness(${(1 + h * 0.45).toFixed(2)})`;
-        }
-      }
-
-      if (h <= 0) this.heat.delete(id);
-    }
+  /** 把累積的次數畫到積木上。面板被拉出來時呼叫一次就好 */
+  flushBadges(): void {
+    this.renderBadges();
   }
 
   /**

@@ -254,6 +254,8 @@ function setPaused(next: boolean): void {
     // 從頭跑一輪：否則會看到藏起來期間殘留的子彈，形狀是亂的
     preview.resize();
     preview.setScript(editor.read());
+    // 面板拉出來的這一刻才把執行次數畫到積木上
+    editor.flushBadges();
   }
   // 預覽收合會改變積木區高度，Blockly 要重新量測
   if (splitter.width > 0) editor.resize();
@@ -338,8 +340,8 @@ function frame(now: number): void {
   renderer.draw(world, viewW, viewH, dpr);
   // 軌跡只能取一次，編輯器與監視器共用同一份
   const trace = world.runner.drainTrace();
-  // 暫停時傳 dt=0 凍結餘輝 —— 空白鍵就成了「定格檢視腳本跑到哪」的工具
-  editor.updateHeat(trace, paused ? 0 : dt, world.runner.cycles);
+  // 面板收起時只記帳、不碰 DOM；數字等面板拉出來再一次畫上去
+  editor.trackCounts(trace, world.runner.cycles);
   // 監視器只在遊玩時出現；暫停時看的是左邊真正的積木
   monitor.setVisible(!paused && started);
   monitor.update(trace, dt, world.runner.cycles, world.runner.progress);

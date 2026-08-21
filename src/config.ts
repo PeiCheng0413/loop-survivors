@@ -203,6 +203,9 @@ export const GRID_CELL = 64;
  * 6 塊積木，直接畫「當前積木」等於每幀隨機抽一塊來亮，六分之五的執行是隱形的。
  *
  * 0.2 是實際比對 0／0.12／0.2／0.3／0.45 後選定的，理由見 docs/DECISIONS.md §3a。
+ *
+ * 現在由左上角的監視器使用（render/monitor.ts）。Blockly 那側不再做餘輝 ——
+ * 積木面板只在暫停時出現，而暫停時 VM 沒有執行，那條路徑走不到。
  */
 export const HEAT_DECAY = 0.2;
 

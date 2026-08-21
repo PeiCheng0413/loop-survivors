@@ -53,7 +53,7 @@ export class Hud {
     this.stats.textContent =
       `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}` +
       `　擊殺 ${world.kills}　敵人 ${world.enemies.length}　子彈 ${world.bullets.length}` +
-      `　週期 ${world.runner.cycles}　${Math.round(fps)} fps　·　${world.phase.name}`;
+      `　${Math.round(fps)} fps　·　第 ${world.round} 輪 ${world.phase.name}`;
 
     this.hpBar.style.width = `${(world.player.hp / world.player.maxHp) * 100}%`;
     this.xpBar.style.width = `${(world.xp / world.xpNeeded) * 100}%`;
@@ -77,7 +77,7 @@ export class Hud {
     } else if (world.dead) html = "陣亡　按 R 重來";
     else if (this.telegraph) {
       html =
-        `<span class="banner-title">${this.telegraph.name}</span>` +
+        `<span class="banner-title">第 ${world.round} 輪　${this.telegraph.name}</span>` +
         `<span class="banner-hint"></span>` +
         `<span class="banner-key">按空白鍵繼續</span>`;
     } else if (paused) html = "暫停";

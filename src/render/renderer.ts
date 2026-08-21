@@ -12,6 +12,8 @@ const COLOR = {
   aim: "#4aa8ff",
   enemy: "#ff4d5a",
   enemyArmor: "#8fa3bf",
+  enemyShielded: "#b06bff",
+  enemyRush: "#ffd166",
   enemyBoss: "#ff8a3d",
   enemyHit: "#ffffff",
   blocked: "#5a6a80",
@@ -22,6 +24,15 @@ const COLOR = {
 };
 
 const GRID = 80;
+
+/** 敵人種類與顏色。新增敵人時記得補一行，否則會落到預設的紅色 */
+const ENEMY_COLOR: Record<string, string> = {
+  swarm: COLOR.enemy,
+  armor: COLOR.enemyArmor,
+  shielded: COLOR.enemyShielded,
+  rush: COLOR.enemyRush,
+  boss: COLOR.enemyBoss,
+};
 
 /**
  * Canvas 2D 繪製。**只讀 World，不改任何狀態** —— 這條鐵律是
@@ -110,8 +121,7 @@ export class Renderer {
   private drawEnemies(world: World): void {
     const ctx = this.ctx;
     for (const e of world.enemies) {
-      const base =
-        e.kind === "boss" ? COLOR.enemyBoss : e.kind === "armor" ? COLOR.enemyArmor : COLOR.enemy;
+      const base = ENEMY_COLOR[e.kind] ?? COLOR.enemy;
 
       // 受擊閃白：打到東西的手感有一半來自這個 8 分之 1 秒
       ctx.fillStyle = e.hit > 0 ? COLOR.enemyHit : base;
@@ -125,6 +135,26 @@ export class Renderer {
       ctx.fillStyle = "#000";
       ctx.fill();
       ctx.globalAlpha = 1;
+
+      /**
+       * 魔法護盾畫成一圈分段的弧：需要幾次命中就有幾段，打中一次亮一段。
+       *
+       * 用「數得出來的段數」而不是一條血條 —— 學生要看出的是
+       * 「還差幾次」，那是個整數，而且直接對應到迴圈要跑幾次。
+       */
+      if (e.shieldHits > 0) {
+        const gap = 0.22;
+        const step = (Math.PI * 2) / e.shieldHits;
+        for (let i = 0; i < e.shieldHits; i++) {
+          ctx.strokeStyle = i < e.hitsTaken ? "#ffffff" : COLOR.enemyShielded;
+          ctx.globalAlpha = i < e.hitsTaken ? 1 : 0.55;
+          ctx.lineWidth = 3.5;
+          ctx.beginPath();
+          ctx.arc(e.x, e.y, e.r + 6, i * step + gap / 2, (i + 1) * step - gap / 2);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+      }
 
       // 裝甲兵畫一圈厚外殼，讓「這東西不一樣」在看到的第一眼就成立
       if (e.armor > 0) {

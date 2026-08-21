@@ -95,6 +95,11 @@ export class World implements ScriptHost {
     return this.spawner.phase;
   }
 
+  /** 目前是第幾輪循環（從 1 起算）。無盡模式的難度指標 */
+  get round(): number {
+    return this.spawner.round;
+  }
+
   /** 取走「階段剛切換」的通知，主迴圈用它來自動暫停並顯示預告 */
   consumePhaseAlert(): Phase | null {
     return this.spawner.consumeAlert();
@@ -295,6 +300,15 @@ export class World implements ScriptHost {
       e.knockY *= 1 - Math.min(1, dt * 6);
       if (e.hit > 0) e.hit -= dt;
       if (e.blocked > 0) e.blocked -= dt;
+
+      // 護盾的累積命中會過期 —— 這正是它逼出「連射」而非「慢慢磨」的原因
+      if (e.shieldHits > 0 && e.hitsTaken > 0) {
+        e.hitTimer += dt;
+        if (e.hitTimer > e.shieldWindow) {
+          e.hitsTaken = 0;
+          e.hitTimer = 0;
+        }
+      }
     }
   }
 
@@ -430,6 +444,27 @@ export class World implements ScriptHost {
         if (!e || e.hp <= 0) return;
         const rr = (b.r + e.r) ** 2;
         if ((b.x - e.x) ** 2 + (b.y - e.y) ** 2 > rr) return;
+        /**
+         * 魔法護盾：短時間內累積足夠命中才會破盾，在那之前完全無敵。
+         *
+         * 與傷害門檻（armor）刻意考不同的東西 —— armor 要的是單發威力，
+         * 這個要的是時間內的節奏。兩者要求相反的積木排列，所以不會同時出現。
+         */
+        if (e.shieldHits > 0) {
+          e.hitsTaken += 1;
+          e.hitTimer = 0;
+          if (e.hitsTaken >= e.shieldHits) {
+            // 破盾的這一發照常造成傷害，手感才不會有「白打一發」的頓挫
+            e.shieldHits = 0;
+            e.hitsTaken = 0;
+          } else {
+            e.blocked = 0.12;
+            consumed = b.pierce <= 0;
+            if (b.pierce > 0) b.pierce -= 1;
+            return;
+          }
+        }
+
         // 傷害門檻是質變不是減傷：打不動就是完全打不動，
         // 學生才會意識到要改程式而不是繼續硬打
         if (b.damage < e.armor) {

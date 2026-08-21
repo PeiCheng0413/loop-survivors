@@ -23,6 +23,20 @@ export interface Enemy {
   damage: number;
   /** 傷害門檻：單發低於此值完全無效 */
   armor: number;
+  /**
+   * 魔法護盾：短時間內要命中這麼多次才能破盾，在那之前完全無敵。
+   * 0 代表沒有護盾。
+   *
+   * 與 armor 刻意考不同的東西：armor 考單發威力（空間），
+   * 這個考時間內的節奏（時間）—— 兩者要求相反的積木排列。
+   */
+  shieldHits: number;
+  /** 累積命中的有效時間（秒）。超過就歸零重來 */
+  shieldWindow: number;
+  /** 目前已累積幾次命中 */
+  hitsTaken: number;
+  /** 距離上次命中過了多久，超過 shieldWindow 就重置 */
+  hitTimer: number;
   xp: number;
   /** 受擊閃白的剩餘時間 —— 打到東西的手感有一半來自這個 */
   hit: number;

@@ -1,4 +1,6 @@
-import { ENEMY, ENEMY_KINDS, PHASES, SPAWN, type Phase } from "../config";
+import {
+  CYCLE_ESCALATION, ENEMY, ENEMY_KINDS, PHASE_CYCLE, SPAWN, type Phase,
+} from "../config";
 import type { Enemy, Player } from "./types";
 
 /**
@@ -21,6 +23,9 @@ export interface SpawnContext {
   enemies: Enemy[];
 }
 
+/** 一輪循環的總長度（秒） */
+const CYCLE_LENGTH = PHASE_CYCLE.reduce((sum, p) => sum + p.duration, 0);
+
 export class Spawner {
   private phaseIndex = -1;
   private alert: Phase | null = null;
@@ -28,9 +33,21 @@ export class Spawner {
   private onceSpawned = 0;
   /** 生成速率的累積量，滿 1 就生一隻 */
   private accum = 0;
+  /** 已完成幾輪循環。強度隨它指數成長，這是無盡模式的難度來源 */
+  private loop = 0;
 
   get phase(): Phase {
-    return PHASES[Math.max(0, this.phaseIndex)];
+    return PHASE_CYCLE[Math.max(0, this.phaseIndex)];
+  }
+
+  /** 目前是第幾輪（從 1 起算），給 HUD 顯示 */
+  get round(): number {
+    return this.loop + 1;
+  }
+
+  /** 這一輪的強度倍率。血量與生成速率都乘上它 */
+  private get intensity(): number {
+    return CYCLE_ESCALATION ** this.loop;
   }
 
   /**
@@ -50,6 +67,7 @@ export class Spawner {
     this.alert = null;
     this.onceSpawned = 0;
     this.accum = 0;
+    this.loop = 0;
   }
 
   /**
@@ -77,7 +95,12 @@ export class Spawner {
       return boss;
     }
 
-    const rate = Math.min(SPAWN.cap, SPAWN.base + ctx.time * SPAWN.growth) * phase.rateMul;
+    // 生成速率同時受時間與輪數影響：時間讓單輪內逐漸吃緊，
+    // 輪數讓每一輪都比上一輪擁擠
+    const rate =
+      Math.min(SPAWN.cap, SPAWN.base + ctx.time * SPAWN.growth) *
+      phase.rateMul *
+      this.intensity;
     this.accum += rate * dt;
     while (this.accum >= 1) {
       this.accum -= 1;
@@ -86,18 +109,33 @@ export class Spawner {
     return null;
   }
 
-  /** 找出目前時間所屬的階段，變了就發預告 */
+  /**
+   * 找出目前時間落在循環的哪個階段，變了就發預告。
+   *
+   * 階段是**循環**的：跑完一輪從頭再來，每輪強度提升。
+   * 王因此不是結局而是節拍器（見 docs/DECISIONS.md §9）。
+   */
   private advancePhase(time: number): void {
-    let index = 0;
-    for (let i = 0; i < PHASES.length; i++) {
-      if (time >= PHASES[i].at) index = i;
-    }
-    if (index === this.phaseIndex) return;
+    const loop = Math.floor(time / CYCLE_LENGTH);
+    let within = time % CYCLE_LENGTH;
 
+    let index = 0;
+    for (let i = 0; i < PHASE_CYCLE.length; i++) {
+      if (within < PHASE_CYCLE[i].duration) {
+        index = i;
+        break;
+      }
+      within -= PHASE_CYCLE[i].duration;
+      index = i;
+    }
+
+    if (index === this.phaseIndex && loop === this.loop) return;
+
+    this.loop = loop;
     this.phaseIndex = index;
     this.onceSpawned = 0;
-    // 第一個階段是開局狀態，不需要預告打斷
-    if (index > 0) this.alert = PHASES[index];
+    // 開局的第一個階段不需要預告打斷；之後每次換階段都要
+    if (!(loop === 0 && index === 0)) this.alert = PHASE_CYCLE[index];
   }
 
   private makeEnemy(
@@ -108,7 +146,8 @@ export class Spawner {
   ): Enemy {
     const a = Math.random() * Math.PI * 2;
     // 血量隨時間成長，讓高單發傷害的 build 到中後期才有舞台
-    const hp = proto.hp * (1 + (ctx.time / 60) * ENEMY.hpGrowthPerMinute);
+    const hp =
+      proto.hp * (1 + (ctx.time / 60) * ENEMY.hpGrowthPerMinute) * this.intensity;
     return {
       x: ctx.player.x + Math.cos(a) * radius,
       y: ctx.player.y + Math.sin(a) * radius,
@@ -118,6 +157,10 @@ export class Spawner {
       kind: phase.kind,
       damage: proto.damage,
       armor: proto.armor,
+      shieldHits: proto.shieldHits,
+      shieldWindow: proto.shieldWindow,
+      hitsTaken: 0,
+      hitTimer: 0,
       xp: proto.xp,
       // 速度加一點隨機，敵群才不會像方陣一樣整齊推進
       speed: proto.speed * (0.85 + Math.random() * 0.3),

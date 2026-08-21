@@ -624,3 +624,94 @@ html, body {
   gap: 3px;
   align-items: flex-start;
 }
+
+/* 死亡結算。無盡模式的成績需要有個去處，否則死亡只是結束、
+   不會變成「再來一局推更遠」的動機。 */
+#gameover {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: rgba(6, 9, 16, 0.88);
+  backdrop-filter: blur(4px);
+}
+
+#gameover.hidden {
+  display: none;
+}
+
+.over-box {
+  width: min(520px, 90%);
+  padding: 28px 30px 24px;
+  text-align: center;
+  background: #111a28;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.over-title {
+  font-size: 15px;
+  letter-spacing: 0.2em;
+  color: var(--dim);
+}
+
+.over-score {
+  margin: 4px 0 2px;
+  font-size: 46px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.over-stats {
+  font-size: 13px;
+  color: var(--dim);
+}
+
+/* 建議是這個畫面最重要的東西：死亡是學生最願意接受建議的時刻 */
+.over-advice {
+  margin: 18px 0;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.8;
+  text-align: left;
+  color: #ffe9c4;
+  background: rgba(255, 200, 60, 0.1);
+  border-left: 3px solid #ffc83c;
+  border-radius: 0 8px 8px 0;
+}
+
+.over-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.over-table th {
+  padding: 6px 8px;
+  font-weight: 400;
+  color: var(--dim);
+  border-bottom: 1px solid var(--border);
+}
+
+.over-table td {
+  padding: 6px 8px;
+  color: #b8c8de;
+}
+
+.over-table tr.me td {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.over-table .dim {
+  color: var(--dim);
+}
+
+.over-key {
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--dim);
+}

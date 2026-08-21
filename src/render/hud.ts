@@ -74,7 +74,10 @@ export class Hud {
         `<span class="banner-title">迴圈生存者</span>` +
         `<span class="banner-hint">左邊是你的攻擊腳本。改好之後按空白鍵開始</span>` +
         `<span class="banner-key">WASD 移動　·　空白鍵 暫停與編輯</span>`;
-    } else if (world.dead) html = "陣亡　按 R 重來";
+    } else if (world.dead) {
+      // 死亡的訊息由結算畫面負責，HUD 不重複顯示
+      html = "";
+    }
     else if (this.telegraph) {
       html =
         `<span class="banner-title">第 ${world.round} 輪　${this.telegraph.name}</span>` +

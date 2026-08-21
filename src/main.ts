@@ -12,6 +12,9 @@ import { SHAPE_TOOLBOX } from "./blocks/toolbox";
 import { Preview } from "./preview";
 import { LevelUp } from "./levelup";
 import { drawCards, type CardContext } from "./cards";
+import { GameOver } from "./gameover";
+import { saveRecord } from "./records";
+import { adviceFor, capacityLeftOf } from "./advice";
 import { SHIELD_PRESET, PRESETS } from "./script/presets";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
@@ -27,6 +30,7 @@ const headShape = document.querySelector<HTMLElement>("#head-shape")!;
 const previewCanvas = document.querySelector<HTMLCanvasElement>("#preview-canvas")!;
 const previewPanel = document.querySelector<HTMLElement>("#preview")!;
 const levelUpRoot = document.querySelector<HTMLElement>("#levelup")!;
+const gameOverRoot = document.querySelector<HTMLElement>("#gameover")!;
 const splitterRoot = document.querySelector<HTMLElement>("#splitter")!;
 
 /**
@@ -87,6 +91,8 @@ const shapeEditor = new Editor(
   },
   SHAPE_TOOLBOX,
 );
+
+const gameOver = new GameOver(gameOverRoot);
 
 /** 目前在哪個分頁。狀態列與預覽都跟著它換內容 */
 let shapeTab = false;
@@ -282,6 +288,21 @@ function frame(now: number): void {
   if (dt > 0.25) dt = 0.25;
   fps += (1 / Math.max(dt, 1e-6) - fps) * 0.1;
 
+  // 死亡結算：只在剛死的那一刻結算一次
+  if (world.dead && !gameOver.isOpen) {
+    const script = editor.read();
+    const run = {
+      time: world.time,
+      kills: world.kills,
+      level: world.level,
+      round: world.round,
+      script: script.name,
+      at: new Date().toISOString().slice(0, 16).replace("T", " "),
+    };
+    const { records, rank } = saveRecord(run);
+    gameOver.show(run, records, rank, adviceFor(script, world.phase, capacityLeftOf(script)));
+  }
+
   // 階段切換強制暫停並預告 —— 這是「依敵人改排列」機制的觸發點，
   // 不強制的話多數學生會硬打到死，根本不會發現可以改程式
   const alert = world.consumePhaseAlert();
@@ -299,7 +320,13 @@ function frame(now: number): void {
   // 在積木欄位裡打字時，按鍵不該被當成遊戲操作
   const typing = document.activeElement?.tagName === "INPUT";
   if (!typing) {
-    if (levelUp.isOpen) {
+    if (gameOver.isOpen) {
+      // 結算畫面只認 R：這時按空白鍵或數字鍵都沒有意義
+      if (input.justPressed("KeyR")) {
+        gameOver.close();
+        world.reset(editor.read());
+      }
+    } else if (levelUp.isOpen) {
       // 卡片開著時數字鍵是選卡，不是換角色
       for (let i = 0; i < 3; i++) {
         if (input.justPressed(`Digit${i + 1}`)) levelUp.pick(i);
@@ -310,7 +337,10 @@ function frame(now: number): void {
         hud.clearTelegraph();
         setPaused(!paused);
       }
-      if (input.justPressed("KeyR")) world.reset(editor.read());
+      if (input.justPressed("KeyR")) {
+        gameOver.close();
+        world.reset(editor.read());
+      }
       for (let i = 0; i < PRESETS.length; i++) {
         if (input.justPressed(`Digit${i + 1}`)) loadPreset(i);
       }

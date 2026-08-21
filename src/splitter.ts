@@ -88,7 +88,16 @@ export class Splitter {
   }
 
   toggle(): void {
-    this.collapsed = !this.collapsed;
+    this.setCollapsed(!this.collapsed);
+  }
+
+  /**
+   * 由外部控制收合。遊戲進行時收起、暫停時拉出 ——
+   * 積木只有在暫停時才用得到，玩的時候讓戰場佔滿畫面。
+   */
+  setCollapsed(collapsed: boolean): void {
+    if (this.collapsed === collapsed) return;
+    this.collapsed = collapsed;
     this.apply();
   }
 

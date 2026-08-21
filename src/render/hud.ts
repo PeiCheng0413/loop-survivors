@@ -51,7 +51,7 @@ export class Hud {
     this.telegraph = null;
   }
 
-  update(world: World, fps: number, paused: boolean): void {
+  update(world: World, fps: number, paused: boolean, started = true): void {
     const t = world.time;
     this.stats.textContent =
       `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}` +
@@ -73,7 +73,12 @@ export class Hud {
     }
 
     let html = "";
-    if (world.dead) html = "陣亡　按 R 重來";
+    if (!started) {
+      html =
+        `<span class="banner-title">迴圈生存者</span>` +
+        `<span class="banner-hint">左邊是你的攻擊腳本。改好之後按空白鍵開始</span>` +
+        `<span class="banner-key">WASD 移動　·　空白鍵 暫停與編輯</span>`;
+    } else if (world.dead) html = "陣亡　按 R 重來";
     else if (this.telegraph) {
       html =
         `<span class="banner-title">${this.telegraph.name}</span>` +

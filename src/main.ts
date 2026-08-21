@@ -39,6 +39,8 @@ let viewW = 0;
 let viewH = 0;
 let dpr = 1;
 let paused = false;
+/** 是否已經開始過。開局停在準備狀態，讓學生先看到自己的腳本 */
+let started = false;
 let last = performance.now();
 let accumulator = 0;
 let fps = 60;
@@ -198,7 +200,12 @@ const levelUp = new LevelUp(levelUpRoot, (card) => {
 });
 
 // 分隔線負責決定編輯器寬度；每次變動都要讓畫布與 Blockly 一起重新量測
-const splitter = new Splitter(splitterRoot, editorRoot, () => resize());
+const splitter = new Splitter(splitterRoot, editorRoot, () => {
+  resize();
+  // 維持「面板開著 ⇔ 遊戲暫停」的一致性：玩到一半把面板拉出來，
+  // 就等於進入編輯狀態。否則會出現一邊被追殺一邊拖積木的荒謬狀況
+  if (splitter.width > 0 && started && !paused) setPaused(true);
+});
 
 function resize(): void {
   viewW = window.innerWidth - splitter.width;
@@ -234,6 +241,10 @@ resize();
  */
 function setPaused(next: boolean): void {
   paused = next;
+  // 積木面板只在暫停時拉出。玩的時候戰場佔滿畫面，
+  // 停下來才是編輯時間 —— 這跟暫停既有的三個用途（升級、改排列、
+  // 檢查幾何）是一致的
+  splitter.setCollapsed(!paused);
   syncPreviewVisibility();
   if (paused) {
     // 從頭跑一輪：否則會看到藏起來期間殘留的子彈，形狀是亂的
@@ -289,6 +300,7 @@ function frame(now: number): void {
       }
     } else {
       if (input.justPressed("Space")) {
+        started = true;
         hud.clearTelegraph();
         setPaused(!paused);
       }
@@ -322,9 +334,11 @@ function frame(now: number): void {
   renderer.draw(world, viewW, viewH, dpr);
   // 暫停時傳 dt=0 凍結餘輝 —— 空白鍵就成了「定格檢視腳本跑到哪」的工具
   editor.updateHeat(world.runner.drainTrace(), paused ? 0 : dt, world.runner.cycles);
-  hud.update(world, fps, paused);
+  hud.update(world, fps, paused, started);
   input.endFrame();
 }
 
-setPaused(false); // 初始把預覽收起來。必須在 paused 宣告之後，否則會 TDZ
+// 開局停在準備狀態：積木面板是拉開的，學生先看到自己的攻擊腳本與預覽，
+// 按空白鍵才開始。若一開始就直接開打，多數人不會發現左邊可以編輯。
+setPaused(true);
 requestAnimationFrame(frame);

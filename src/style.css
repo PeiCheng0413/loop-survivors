@@ -36,9 +36,12 @@ html, body {
    學生更不可能猜到。放在積木區正上方，不需要滑鼠停留就看得到。 */
 #editor-head {
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   padding: 8px 12px;
   font-size: 11px;
-  line-height: 1.6;
+  line-height: 1.5;
   color: var(--dim);
   background: #0d1320;
   border-bottom: 1px solid var(--border);

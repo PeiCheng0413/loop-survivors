@@ -67,6 +67,8 @@ export class Hud {
     this.meta.textContent =
       `${script.name}　·　${capacity}　·　每輪 ${fires} 發　·　` +
       `展開寫需 ${expanded} 格　·　移速 ${move}%`;
+    // 容量的意思不寫出來沒人看得懂 —— 設計者本人都問過兩次
+    this.meta.title = `容量：腳本最多能放 ${script.capacity} 塊積木，目前用了 ${used} 塊。滿了就無法再從工具箱拖出積木`;
     this.meta.classList.toggle("full", left <= 0);
     this.meta.classList.toggle("near", left > 0 && left <= 2);
   }

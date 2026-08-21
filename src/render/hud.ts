@@ -1,4 +1,3 @@
-import { countExpanded, countFires, type Script } from "../script/ast";
 import type { Phase } from "../config";
 import type { World } from "../game/world";
 
@@ -8,7 +7,6 @@ import type { World } from "../game/world";
  */
 export class Hud {
   private stats: HTMLElement;
-  private meta: HTMLElement;
   private progressBar: HTMLElement;
   private hpBar: HTMLElement;
   private xpBar: HTMLElement;
@@ -23,7 +21,6 @@ export class Hud {
   constructor(root: HTMLElement) {
     root.innerHTML = `
       <div class="hud-stats"></div>
-      <div class="hud-meta"></div>
       <div class="hud-hp"><i></i></div>
       <div class="hud-xp"><i></i><span></span></div>
       <div class="hud-progress"><i></i></div>
@@ -32,7 +29,6 @@ export class Hud {
       <div class="hud-help">WASD／方向鍵 移動　·　1-5 換角色　·　空白 暫停並試射預覽　·　R 重來</div>
     `;
     this.stats = root.querySelector(".hud-stats")!;
-    this.meta = root.querySelector(".hud-meta")!;
     this.progressBar = root.querySelector(".hud-progress i")!;
     this.hpBar = root.querySelector(".hud-hp i")!;
     this.xpBar = root.querySelector(".hud-xp i")!;
@@ -41,36 +37,6 @@ export class Hud {
     this.bossBar = root.querySelector(".hud-boss")!;
     this.bossFill = root.querySelector(".hud-boss i")!;
     this.bossLabel = root.querySelector(".hud-boss span")!;
-  }
-
-  /**
-   * 腳本改變時更新效率指標。
-   *
-   * 「3/12 格 → 每輪 8 發（展開寫需 16 格）」就是迴圈價值的量化 ——
-   * 學生每拖一塊積木，這行數字就會動，容量的壓力因此是持續可見的。
-   */
-  /**
-   * 腳本改變時更新效率指標。
-   *
-   * 容量的壓力必須是持續可見的 —— Blockly 會在額滿時直接不讓你拖出積木，
-   * 若畫面上沒有預警，學生只會覺得「工具箱壞了」而不是「我該用迴圈了」。
-   */
-  setScript(script: Script, used: number, mobility: number): void {
-    const fires = countFires(script.body);
-    const expanded = countExpanded(script.body);
-    const left = script.capacity - used;
-
-    // 移速跟著子彈規格連動，拖積木的當下就看得到代價
-    const move = Math.round(mobility * 100);
-    const capacity =
-      left <= 0 ? `容量 ${used}/${script.capacity} 格（已滿）` : `容量 ${used}/${script.capacity} 格`;
-    this.meta.textContent =
-      `${script.name}　·　${capacity}　·　每輪 ${fires} 發　·　` +
-      `展開寫需 ${expanded} 格　·　移速 ${move}%`;
-    // 容量的意思不寫出來沒人看得懂 —— 設計者本人都問過兩次
-    this.meta.title = `容量：腳本最多能放 ${script.capacity} 塊積木，目前用了 ${used} 塊。滿了就無法再從工具箱拖出積木`;
-    this.meta.classList.toggle("full", left <= 0);
-    this.meta.classList.toggle("near", left > 0 && left <= 2);
   }
 
   /**

@@ -1,6 +1,7 @@
 import "./style.css";
-import { STEP } from "./config";
+import { SHIELD, STEP } from "./config";
 import { Editor } from "./editor";
+import { countExpanded, countFires } from "./script/ast";
 import { Input } from "./game/input";
 import { World } from "./game/world";
 import { Hud } from "./render/hud";
@@ -18,7 +19,7 @@ const editorRoot = document.querySelector<HTMLElement>("#editor")!;
 const blocklyRoot = document.querySelector<HTMLElement>("#blockly")!;
 const shapeRoot = document.querySelector<HTMLElement>("#blockly-shape")!;
 const tabs = document.querySelector<HTMLElement>("#editor-tabs")!;
-const shapeStatus = document.querySelector<HTMLElement>("#shape-status")!;
+const panelStatus = document.querySelector<HTMLElement>("#panel-status")!;
 const headAttack = document.querySelector<HTMLElement>("#head-attack")!;
 const headShape = document.querySelector<HTMLElement>("#head-shape")!;
 const previewCanvas = document.querySelector<HTMLCanvasElement>("#preview-canvas")!;
@@ -62,7 +63,7 @@ const editor = new Editor(blocklyRoot, () => {
   const script = editor.read();
   world.setScript(script);
   preview.setScript(script);
-  hud.setScript(script, editor.used(), world.mobilityMultiplier);
+  updatePanelStatus();
 });
 
 /**
@@ -76,35 +77,76 @@ const shapeEditor = new Editor(
   () => {
     world.setShieldScript(shapeEditor.read());
     preview.setShape(world.shield);
-    updateShapeStatus();
+    updatePanelStatus();
   },
   SHAPE_TOOLBOX,
 );
 
+/** 目前在哪個分頁。狀態列與預覽都跟著它換內容 */
+let shapeTab = false;
+/** 上次寫進狀態列的內容。護盾血量會在戰鬥中變動，靠比對避免每幀重建 DOM */
+let lastStatusHtml = "";
+
 /**
- * 護盾形狀的即時回饋。
+ * 面板狀態列。兩個分頁共用同一列，內容依分頁而定。
  *
- * 「還差幾度」是這個練習的核心 —— 只說「沒有生效」的話，學生只能亂試；
- * 說出差額，他才有辦法自己算出正確的轉角。
+ * 護盾那側的「還差幾度」是整個幾何練習的核心 —— 只說「沒有生效」的話，
+ * 學生只能亂試；說出差額，他才有辦法自己算出正確的轉角。
  */
-function updateShapeStatus(): void {
-  const shape = world.shield;
-  if (!shape || shape.sides === 0) {
-    shapeStatus.className = "warn";
-    shapeStatus.textContent = "還沒有形狀 —— 用「前進」與「右轉」畫一個封閉圖形";
-    return;
+function updatePanelStatus(): void {
+  const { cls, html } = buildStatus();
+  if (html === lastStatusHtml) return;
+  lastStatusHtml = html;
+  panelStatus.className = cls;
+  panelStatus.innerHTML = html;
+}
+
+function buildStatus(): { cls: string; html: string } {
+  if (shapeTab) {
+    const shape = world.shield;
+    if (!shape || shape.sides === 0) {
+      return {
+        cls: "warn",
+        html:
+          `<div class="status-main">還沒有形狀</div>` +
+          `<div class="status-sub">用「前進」與「右轉」畫一個封閉圖形</div>`,
+      };
+    }
+    if (world.shieldClosed) {
+      const hp = Math.max(0, Math.round(world.shieldHp));
+      return {
+        cls: "ok",
+        html:
+          `<div class="status-main">✅ 護盾閉合　${shape.sides} 邊形</div>` +
+          `<div class="status-sub">傷害 +${Math.round(shape.sides * SHIELD.buffPerSide * 100)}%　·　` +
+          (world.shieldDown > 0
+            ? `破盾　恢復中 ${world.shieldDown.toFixed(1)}s`
+            : `護盾 ${hp}/${SHIELD.maxHp}`) +
+          `</div>`,
+      };
+    }
+    const short = 360 - (((shape.turnTotal % 360) + 360) % 360);
+    return {
+      cls: "warn",
+      html:
+        `<div class="status-main">⚠️ 圖形沒有閉合，這局沒有護盾</div>` +
+        `<div class="status-sub">缺口 ${shape.gap.toFixed(0)}px　·　` +
+        `轉角總和 ${shape.turnTotal}°，還差 ${short}°</div>`,
+    };
   }
-  if (world.shieldClosed) {
-    shapeStatus.className = "ok";
-    shapeStatus.textContent =
-      `✅ 護盾閉合　${shape.sides} 邊形　傷害 +${Math.round(shape.sides * 4)}%`;
-    return;
-  }
-  const short = 360 - (((shape.turnTotal % 360) + 360) % 360);
-  shapeStatus.className = "warn";
-  shapeStatus.textContent =
-    `⚠️ 有缺口 ${shape.gap.toFixed(0)}px，敵人穿得過來，也拿不到加成　·　` +
-    `轉角總和 ${shape.turnTotal}°，還差 ${short}°`;
+
+  const script = editor.read();
+  const used = editor.used();
+  const left = editor.capacity() - used;
+  return {
+    cls: left <= 0 ? "danger" : left <= 2 ? "warn" : "",
+    html:
+      `<div class="status-main">${script.name}　·　容量 ${used}/${editor.capacity()} 格` +
+      `${left <= 0 ? "（已滿）" : ""}</div>` +
+      `<div class="status-sub">每輪 ${countFires(script.body)} 發　·　` +
+      `展開寫需 ${countExpanded(script.body)} 格　·　` +
+      `移速 ${Math.round(world.mobilityMultiplier * 100)}%</div>`,
+  };
 }
 shapeEditor.load(SHIELD_PRESET);
 
@@ -120,7 +162,8 @@ tabs.addEventListener("click", (e) => {
   const isShape = btn.dataset.tab === "shape";
   blocklyRoot.classList.toggle("hidden", isShape);
   shapeRoot.classList.toggle("hidden", !isShape);
-  shapeStatus.classList.toggle("hidden", !isShape);
+  shapeTab = isShape;
+  updatePanelStatus();
   // 圖例跟著換：容量與 ×N 是攻擊腳本的概念，在護盾分頁只會誤導
   headAttack.classList.toggle("hidden", isShape);
   headShape.classList.toggle("hidden", !isShape);
@@ -151,7 +194,7 @@ const levelUp = new LevelUp(levelUpRoot, (card) => {
   card.apply(cardContext);
   world.pendingLevelUps--;
   // 積木卡會改變工具箱與容量，指標要重算
-  hud.setScript(editor.read(), editor.used(), world.mobilityMultiplier);
+  updatePanelStatus();
 });
 
 // 分隔線負責決定編輯器寬度；每次變動都要讓畫布與 Blockly 一起重新量測
@@ -251,6 +294,9 @@ function frame(now: number): void {
     preview.step(dt);
     preview.draw();
   }
+
+  // 護盾血量會在戰鬥中變動，狀態列要跟著走（內容沒變就不會動 DOM）
+  if (shapeTab) updatePanelStatus();
 
   renderer.draw(world, viewW, viewH, dpr);
   // 暫停時傳 dt=0 凍結餘輝 —— 空白鍵就成了「定格檢視腳本跑到哪」的工具

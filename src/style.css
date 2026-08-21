@@ -250,31 +250,6 @@ html, body {
   letter-spacing: 0.02em;
 }
 
-/* 腳本效率指標。每拖一塊積木這行就會動，容量壓力因此持續可見 */
-.hud-meta {
-  position: absolute;
-  top: 38px;
-  left: 16px;
-  padding: 5px 10px;
-  font-size: 12px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-
-/* 容量見底時先轉黃預警、額滿轉紅 —— 學生不必去讀規則，
-   看顏色就知道「該想辦法用更少的積木做更多事」了 */
-.hud-meta.near {
-  color: #ffe0a8;
-  border-color: rgba(255, 200, 60, 0.5);
-}
-
-.hud-meta.full {
-  color: #ffb3b8;
-  border-color: rgba(255, 77, 90, 0.65);
-  background: rgba(60, 16, 22, 0.85);
-}
-
 .hud-progress {
   position: absolute;
   left: 16px;
@@ -545,33 +520,41 @@ html, body {
   color: var(--dim);
 }
 
-/* 護盾形狀的即時回饋。「還差幾度」是這個練習的核心 ——
-   只說「沒有生效」學生只能亂試，說出差額他才算得出正確答案。
+/* 面板狀態列。兩個分頁共用同一個位置與寬度，內容跟著分頁換。
 
-   用絕對定位疊在積木區上方，而不是佔一格 flex 版面 ——
-   否則兩個分頁的積木區高度不同，切換時整個版面會跳。 */
-#shape-status {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 190px;
-  z-index: 5;
-  padding: 9px 12px;
+   做成一般的 flex 項目而非絕對定位 —— 疊在積木區上方會被 Blockly 的
+   工具箱圖層蓋住（那是它自己的 SVG，z-index 管不到）。
+
+   高度固定兩行，切換分頁時版面才不會跳。 */
+#panel-status {
+  flex-shrink: 0;
+  min-height: 54px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 12px;
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 1.5;
+  color: var(--fg);
+  background: #0d1320;
   border-top: 1px solid var(--border);
 }
 
-#shape-status.hidden {
-  display: none;
+#panel-status .status-sub {
+  font-size: 11px;
+  color: var(--dim);
 }
 
-#shape-status.ok {
+#panel-status.ok .status-main {
   color: #9df5c4;
-  background: rgba(20, 50, 36, 0.6);
 }
 
-#shape-status.warn {
+#panel-status.warn .status-main {
   color: #ffd8a8;
-  background: rgba(58, 40, 16, 0.6);
 }
+
+#panel-status.danger .status-main {
+  color: #ffb3b8;
+}
+

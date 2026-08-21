@@ -51,7 +51,8 @@ src/
     presets.ts         起手腳本
     format.ts          AST → 可顯示的行（監視器用）
   game/
-    world.ts           世界模擬：階段、敵人、子彈、經驗、碰撞
+    world.ts           世界模擬的組裝：子彈、經驗、碰撞、傷害
+    spawner.ts         **敵人生成與階段輪替（調難度曲線只看這裡）**
     shield-unit.ts     **幾何護盾。獨立於武器的插件**
     shield.ts          護盾的幾何運算（海龜走訪、點到線段距離）
     types.ts           實體型別
@@ -107,8 +108,11 @@ export const MY_WEAPON: WeaponDef = {
 
 ### 調平衡
 
-一律在 `config/` 底下，不要把數值寫進邏輯。改完跑 `npm run sim -- 300`
-對照，特別確認**迴圈紅線**：巢狀迴圈的輸出必須明顯高於無迴圈的寫法。
+數值一律在 `config/` 底下，不要寫進邏輯。難度曲線的**行為**（何時換階段、
+每秒生幾隻、血量怎麼長）在 `game/spawner.ts`。
+
+改完跑 `npm run sim -- 300` 對照，特別確認**迴圈紅線**：
+巢狀迴圈的輸出必須明顯高於無迴圈的寫法。
 
 ### 為什麼 blocks/ 要拆這麼細
 

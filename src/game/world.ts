@@ -1,6 +1,6 @@
 import {
   CHARGE, ENEMY, EXPLODE, GEM, HOMING_TURN_RATE,
-  ENEMY_KINDS, MAX_BULLETS, MOBILITY, PHASES, PLAYER, SPAWN, SPLIT, UPGRADE,
+  MAX_BULLETS, MOBILITY, PLAYER, SPLIT, UPGRADE,
   xpForLevel,
   type Phase,
 } from "../config";
@@ -9,6 +9,7 @@ import type { AimTarget } from "../script/ast";
 import { ScriptRunner, type BulletOpts, type ScriptHost } from "../script/vm";
 import { EnemyGrid } from "./collision";
 import { ShieldUnit } from "./shield-unit";
+import { Spawner } from "./spawner";
 import { DEFAULT_WEAPON, type WeaponDef } from "../weapons";
 import type { Bullet, Enemy, Gem, Player, Stats } from "./types";
 import type { Input } from "./input";
@@ -41,12 +42,9 @@ export class World implements ScriptHost {
   /** 視窗尺寸，決定敵人要在多遠的畫面外生成 */
   private viewW = 1280;
   private viewH = 720;
-  private spawnAccum = 0;
   private grid = new EnemyGrid();
-  private phaseIndex = -1;
-  /** 剛切換到的階段，等主迴圈取走去做預告與自動暫停 */
-  private phaseAlert: Phase | null = null;
-  private onceSpawned = 0;
+  /** 敵人生成與階段輪替。調難度曲線只需要看這個模組 */
+  private spawner = new Spawner();
   /** 王的參考，給 HUD 畫血條 */
   boss: Enemy | null = null;
   /**
@@ -94,19 +92,12 @@ export class World implements ScriptHost {
   }
 
   get phase(): Phase {
-    return PHASES[Math.max(0, this.phaseIndex)];
+    return this.spawner.phase;
   }
 
-  /**
-   * 取走「階段剛切換」的通知。主迴圈用它來自動暫停並顯示預告。
-   *
-   * 不自動暫停的話，多數學生會硬打到死，根本不會發現可以改程式 ——
-   * 而那正是整個機制的價值所在（見 docs/DECISIONS.md §9a）。
-   */
+  /** 取走「階段剛切換」的通知，主迴圈用它來自動暫停並顯示預告 */
   consumePhaseAlert(): Phase | null {
-    const p = this.phaseAlert;
-    this.phaseAlert = null;
-    return p;
+    return this.spawner.consumeAlert();
   }
 
   /** 屬性變動後要把冷卻同步進 runner */
@@ -150,10 +141,7 @@ export class World implements ScriptHost {
     this.time = 0;
     this.kills = 0;
     this.dead = false;
-    this.spawnAccum = 0;
-    this.phaseIndex = -1;
-    this.phaseAlert = null;
-    this.onceSpawned = 0;
+    this.spawner.reset();
     this.boss = null;
     this.shield.reset();
     this.runner.reset(script);
@@ -246,7 +234,14 @@ export class World implements ScriptHost {
     this.time += dt;
 
     this.movePlayer(dt, input);
-    this.spawn(dt);
+    const boss = this.spawner.update(dt, {
+      time: this.time,
+      player: this.player,
+      viewW: this.viewW,
+      viewH: this.viewH,
+      enemies: this.enemies,
+    });
+    if (boss) this.boss = boss;
     this.grid.rebuild(this.enemies);
     this.moveEnemies(dt);
     this.runner.update(dt); // 腳本推進 —— 子彈就是在這裡生出來的
@@ -265,69 +260,6 @@ export class World implements ScriptHost {
       this.player.y += a.y * speed * dt;
       this.player.moveDir = Math.atan2(a.y, a.x) / DEG;
     }
-  }
-
-  private spawn(dt: number): void {
-    // 階段推進：找出目前時間所屬的階段，變了就發預告
-    let index = 0;
-    for (let i = 0; i < PHASES.length; i++) {
-      if (this.time >= PHASES[i].at) index = i;
-    }
-    if (index !== this.phaseIndex) {
-      this.phaseIndex = index;
-      this.onceSpawned = 0;
-      // 第一個階段是開局狀態，不需要預告打斷
-      if (index > 0) this.phaseAlert = PHASES[index];
-    }
-
-    const phase = PHASES[index];
-    const proto = ENEMY_KINDS[phase.kind];
-    const radius = Math.hypot(this.viewW, this.viewH) / 2 + SPAWN.margin;
-
-    // 一次性生成（王）
-    if (phase.once) {
-      while (this.onceSpawned < phase.once) {
-        this.onceSpawned++;
-        const e = this.makeEnemy(phase, proto, radius);
-        this.enemies.push(e);
-        if (phase.kind === "boss") this.boss = e;
-      }
-      return;
-    }
-
-    const rate =
-      Math.min(SPAWN.cap, SPAWN.base + this.time * SPAWN.growth) * phase.rateMul;
-    this.spawnAccum += rate * dt;
-    while (this.spawnAccum >= 1) {
-      this.spawnAccum -= 1;
-      this.enemies.push(this.makeEnemy(phase, proto, radius));
-    }
-  }
-
-  private makeEnemy(
-    phase: Phase,
-    proto: (typeof ENEMY_KINDS)[keyof typeof ENEMY_KINDS],
-    radius: number,
-  ): Enemy {
-    const a = Math.random() * Math.PI * 2;
-    // 血量隨時間成長，讓高單發傷害的 build 到中後期才有舞台
-    const hp = proto.hp * (1 + (this.time / 60) * ENEMY.hpGrowthPerMinute);
-    return {
-      x: this.player.x + Math.cos(a) * radius,
-      y: this.player.y + Math.sin(a) * radius,
-      r: proto.radius,
-      hp,
-      maxHp: hp,
-      kind: phase.kind,
-      damage: proto.damage,
-      armor: proto.armor,
-      xp: proto.xp,
-      speed: proto.speed * (0.85 + Math.random() * 0.3),
-      hit: 0,
-      blocked: 0,
-      knockX: 0,
-      knockY: 0,
-    };
   }
 
   private moveEnemies(dt: number): void {

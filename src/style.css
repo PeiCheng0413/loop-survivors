@@ -250,24 +250,6 @@ html, body {
   letter-spacing: 0.02em;
 }
 
-.hud-progress {
-  position: absolute;
-  left: 16px;
-  top: 72px;
-  width: 220px;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.hud-progress i {
-  display: block;
-  height: 100%;
-  width: 0;
-  background: var(--accent);
-}
-
 .hud-hp {
   position: absolute;
   left: 50%;
@@ -566,7 +548,7 @@ html, body {
 #monitor {
   position: fixed;
   left: calc(var(--editor-w) + 16px);
-  top: 62px;
+  top: 40px;
   z-index: 6;
   display: flex;
   flex-direction: column;
@@ -616,4 +598,29 @@ html, body {
   font-size: 11px;
   color: #ffc83c;
   opacity: 0.9;
+}
+
+/* 本輪腳本的執行進度。放在積木列表正上方 ——
+   它講的就是下面那排積木跑到哪了，兩者本來就該在一起。 */
+.mon-progress {
+  width: 150px;
+  height: 3px;
+  margin-bottom: 7px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.mon-progress i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+}
+
+.mon-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-start;
 }

@@ -342,7 +342,7 @@ function frame(now: number): void {
   editor.updateHeat(trace, paused ? 0 : dt, world.runner.cycles);
   // 監視器只在遊玩時出現；暫停時看的是左邊真正的積木
   monitor.setVisible(!paused && started);
-  monitor.update(trace, dt, world.runner.cycles);
+  monitor.update(trace, dt, world.runner.cycles, world.runner.progress);
   hud.update(world, fps, paused, started);
   input.endFrame();
 }

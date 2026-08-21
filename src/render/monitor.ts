@@ -22,12 +22,20 @@ export class ScriptMonitor {
   private lastCycle = -1;
   private headId: string | null = null;
 
+  private progress: HTMLElement;
+  private list: HTMLElement;
+
   constructor(root: HTMLElement) {
     this.root = root;
+    // 進度條與積木列表講的是同一件事（腳本跑到哪），放在一起才不會
+    // 在畫面上變成兩個互不相干、還會互相疊到的元素
+    root.innerHTML = `<div class="mon-progress"><i></i></div><div class="mon-list"></div>`;
+    this.progress = root.querySelector(".mon-progress i")!;
+    this.list = root.querySelector(".mon-list")!;
   }
 
   setScript(script: Script): void {
-    this.root.innerHTML = "";
+    this.list.innerHTML = "";
     this.lineEls.clear();
     this.countEls.clear();
     this.heat.clear();
@@ -47,7 +55,7 @@ export class ScriptMonitor {
       count.className = "mon-count";
 
       el.append(text, count);
-      this.root.appendChild(el);
+      this.list.appendChild(el);
       this.lineEls.set(line.id, el);
       this.countEls.set(line.id, count);
     }
@@ -61,7 +69,9 @@ export class ScriptMonitor {
    * 與編輯器共用同一份執行軌跡（由 main 取一次分給兩邊）。
    * 餘輝的原理與參數見 config.ts 的 HEAT_DECAY。
    */
-  update(trace: string[], dt: number, cycle: number): void {
+  update(trace: string[], dt: number, cycle: number, progress = 0): void {
+    this.progress.style.width = `${(progress * 100).toFixed(1)}%`;
+
     for (const id of trace) {
       this.heat.set(id, 1);
       this.counts.set(id, (this.counts.get(id) ?? 0) + 1);

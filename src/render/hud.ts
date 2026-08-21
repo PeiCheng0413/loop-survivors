@@ -7,7 +7,6 @@ import type { World } from "../game/world";
  */
 export class Hud {
   private stats: HTMLElement;
-  private progressBar: HTMLElement;
   private hpBar: HTMLElement;
   private xpBar: HTMLElement;
   private xpLabel: HTMLElement;
@@ -23,13 +22,11 @@ export class Hud {
       <div class="hud-stats"></div>
       <div class="hud-hp"><i></i></div>
       <div class="hud-xp"><i></i><span></span></div>
-      <div class="hud-progress"><i></i></div>
       <div class="hud-boss"><span></span><i></i></div>
       <div class="hud-banner"></div>
       <div class="hud-help">WASD／方向鍵 移動　·　1-5 換角色　·　空白 暫停並試射預覽　·　R 重來</div>
     `;
     this.stats = root.querySelector(".hud-stats")!;
-    this.progressBar = root.querySelector(".hud-progress i")!;
     this.hpBar = root.querySelector(".hud-hp i")!;
     this.xpBar = root.querySelector(".hud-xp i")!;
     this.xpLabel = root.querySelector(".hud-xp span")!;
@@ -58,7 +55,6 @@ export class Hud {
       `　擊殺 ${world.kills}　敵人 ${world.enemies.length}　子彈 ${world.bullets.length}` +
       `　週期 ${world.runner.cycles}　${Math.round(fps)} fps　·　${world.phase.name}`;
 
-    this.progressBar.style.width = `${world.runner.progress * 100}%`;
     this.hpBar.style.width = `${(world.player.hp / world.player.maxHp) * 100}%`;
     this.xpBar.style.width = `${(world.xp / world.xpNeeded) * 100}%`;
     const xpText = `Lv.${world.level}　${world.xp}/${world.xpNeeded}`;

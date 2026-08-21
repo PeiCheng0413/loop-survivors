@@ -214,6 +214,14 @@ function resize(): void {
     if (paused) preview.resize();
   }
 }
+// 點回戰場就收掉積木的欄位編輯器 —— 否則它會保持焦點，
+// 之後按空白鍵會被當成在輸入框裡打字，遊戲不會恢復
+canvas.addEventListener("pointerdown", () => {
+  editor.dismissEditors();
+  shapeEditor.dismissEditors();
+  canvas.focus();
+});
+
 window.addEventListener("resize", resize);
 resize();
 
@@ -226,7 +234,7 @@ resize();
  */
 function setPaused(next: boolean): void {
   paused = next;
-  previewPanel.classList.toggle("hidden", !paused);
+  syncPreviewVisibility();
   if (paused) {
     // 從頭跑一輪：否則會看到藏起來期間殘留的子彈，形狀是亂的
     preview.resize();
@@ -234,6 +242,17 @@ function setPaused(next: boolean): void {
   }
   // 預覽收合會改變積木區高度，Blockly 要重新量測
   if (splitter.width > 0) editor.resize();
+}
+
+/**
+ * 預覽面板的顯示**由狀態推導，而不是在切換時設定**。
+ *
+ * 只在轉換點設定的話，任何一條沒走到 setPaused 的路徑都會讓面板卡住
+ * （症狀就是恢復遊戲後預覽不收回去）。每幀對照一次，狀態與畫面
+ * 就不可能不同步 —— 成本只有一次 classList 比對。
+ */
+function syncPreviewVisibility(): void {
+  previewPanel.classList.toggle("hidden", !paused);
 }
 
 function frame(now: number): void {
@@ -294,6 +313,8 @@ function frame(now: number): void {
     preview.step(dt);
     preview.draw();
   }
+
+  syncPreviewVisibility();
 
   // 護盾血量會在戰鬥中變動，狀態列要跟著走（內容沒變就不會動 DOM）
   if (shapeTab) updatePanelStatus();

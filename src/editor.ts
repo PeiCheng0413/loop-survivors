@@ -163,6 +163,16 @@ export class Editor {
   }
 
   /**
+   * 關掉開啟中的欄位編輯器與彈出選單。
+   *
+   * 學生點過積木上的數字後，Blockly 會留下一個 input 並保持焦點 ——
+   * 這時按空白鍵會被當成打字，遊戲不會恢復。點回戰場時要先收掉它。
+   */
+  dismissEditors(): void {
+    this.workspace.hideChaff();
+  }
+
+  /**
    * 依執行軌跡點亮積木。dt 傳 0 代表凍結（暫停時定格檢視）。
    *
    * 濾鏡只套在積木自己的 path 上，不套整個 SVG 群組 —— 巢狀積木在

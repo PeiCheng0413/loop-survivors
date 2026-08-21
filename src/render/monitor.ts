@@ -67,7 +67,7 @@ export class ScriptMonitor {
 
   /**
    * 與編輯器共用同一份執行軌跡（由 main 取一次分給兩邊）。
-   * 餘輝的原理與參數見 config.ts 的 HEAT_DECAY。
+   * 餘輝的原理與參數見 config/ui.ts 的 HEAT_DECAY。
    */
   update(trace: string[], dt: number, cycle: number, progress = 0): void {
     this.progress.style.width = `${(progress * 100).toFixed(1)}%`;

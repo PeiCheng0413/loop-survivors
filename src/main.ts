@@ -19,6 +19,8 @@ const blocklyRoot = document.querySelector<HTMLElement>("#blockly")!;
 const shapeRoot = document.querySelector<HTMLElement>("#blockly-shape")!;
 const tabs = document.querySelector<HTMLElement>("#editor-tabs")!;
 const shapeStatus = document.querySelector<HTMLElement>("#shape-status")!;
+const headAttack = document.querySelector<HTMLElement>("#head-attack")!;
+const headShape = document.querySelector<HTMLElement>("#head-shape")!;
 const previewCanvas = document.querySelector<HTMLCanvasElement>("#preview-canvas")!;
 const previewPanel = document.querySelector<HTMLElement>("#preview")!;
 const levelUpRoot = document.querySelector<HTMLElement>("#levelup")!;
@@ -106,6 +108,11 @@ function updateShapeStatus(): void {
 }
 shapeEditor.load(SHIELD_PRESET);
 
+// 注入完成後才隱藏。**順序不能反** —— Blockly 若注入到 display:none 的容器，
+// 會以 0×0 算完內部座標，之後即使改了尺寸，捲動原點仍然是錯的，
+// 症狀就是切過去時積木位置整個跑掉。
+shapeRoot.classList.add("hidden");
+
 // 分頁切換。隱藏的工作區量測會得到 0，切回來時必須重新 resize
 tabs.addEventListener("click", (e) => {
   const btn = (e.target as HTMLElement).closest("button");
@@ -114,12 +121,19 @@ tabs.addEventListener("click", (e) => {
   blocklyRoot.classList.toggle("hidden", isShape);
   shapeRoot.classList.toggle("hidden", !isShape);
   shapeStatus.classList.toggle("hidden", !isShape);
+  // 圖例跟著換：容量與 ×N 是攻擊腳本的概念，在護盾分頁只會誤導
+  headAttack.classList.toggle("hidden", isShape);
+  headShape.classList.toggle("hidden", !isShape);
   // 暫停預覽跟著分頁切換內容：看護盾就顯示形狀，看攻擊就顯示彈幕
   preview.setMode(isShape ? "shape" : "attack");
   for (const b of tabs.querySelectorAll("button")) {
     b.classList.toggle("active", b === btn);
   }
-  (isShape ? shapeEditor : editor).resize();
+  // 隱藏期間 Blockly 量不到尺寸，切回來一定要重新量測並回到原點，
+  // 否則積木會停在上次隱藏前的捲動位置
+  const active = isShape ? shapeEditor : editor;
+  active.resize();
+  active.resetView();
 });
 
 function loadPreset(i: number): void {

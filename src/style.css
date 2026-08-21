@@ -52,6 +52,17 @@ html, body {
   font-weight: 600;
 }
 
+#editor-head > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+#head-attack.hidden,
+#head-shape.hidden {
+  display: none;
+}
+
 /* min-height: 0 是必要的 —— flex 子項預設不會縮到內容以下，
    少了它 Blockly 會把預覽區擠出畫面外 */
 /* 分頁列。雙腳本的驗證重點之一就是「切換成本」——
@@ -535,9 +546,16 @@ html, body {
 }
 
 /* 護盾形狀的即時回饋。「還差幾度」是這個練習的核心 ——
-   只說「沒有生效」學生只能亂試，說出差額他才算得出正確答案。 */
+   只說「沒有生效」學生只能亂試，說出差額他才算得出正確答案。
+
+   用絕對定位疊在積木區上方，而不是佔一格 flex 版面 ——
+   否則兩個分頁的積木區高度不同，切換時整個版面會跳。 */
 #shape-status {
-  flex-shrink: 0;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 190px;
+  z-index: 5;
   padding: 9px 12px;
   font-size: 12px;
   line-height: 1.6;

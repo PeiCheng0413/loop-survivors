@@ -9,15 +9,21 @@
   <body>
     <div id="editor">
       <div id="editor-head">
-        <div><b>容量</b> ＝ 腳本最多能放幾塊積木，每塊佔 1 格。滿了就拖不出新積木</div>
-        <div><b>×N</b> ＝ 這一輪執行了幾次。外層與內層的數字差，就是巢狀迴圈</div>
+        <div id="head-attack">
+          <div><b>容量</b> ＝ 腳本最多能放幾塊積木，每塊佔 1 格。滿了就拖不出新積木</div>
+          <div><b>×N</b> ＝ 這一輪執行了幾次。外層與內層的數字差，就是巢狀迴圈</div>
+        </div>
+        <div id="head-shape" class="hidden">
+          <div><b>正 N 邊形</b>的每次轉角 ＝ <b>360 ÷ N</b>。圖形要閉合才會有護盾</div>
+          <div>邊數越多，護盾的傷害加成越高。暫停時的預覽會顯示缺口在哪</div>
+        </div>
       </div>
       <div id="editor-tabs">
         <button type="button" data-tab="attack" class="active">攻擊腳本</button>
         <button type="button" data-tab="shape">護盾形狀</button>
       </div>
       <div id="blockly"></div>
-      <div id="blockly-shape" class="hidden"></div>
+      <div id="blockly-shape"></div>
       <div id="shape-status" class="hidden"></div>
       <div id="preview">
         <span class="preview-label">試射預覽</span>

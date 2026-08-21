@@ -30,6 +30,9 @@ function nodeToState(node: Node): State {
     case "addSpeed": return { type: "ls_add_speed", fields: { VALUE: node.value } };
     case "addSize": return { type: "ls_add_size", fields: { VALUE: node.value } };
     case "setLife": return { type: "ls_set_life", fields: { VALUE: node.value } };
+    case "setCurve": return { type: "ls_set_curve", fields: { DEGREES: node.degrees } };
+    case "setMuzzle": return { type: "ls_set_muzzle", fields: { VALUE: node.value } };
+    case "waitByIndex": return { type: "ls_wait_by_index", fields: { SECONDS: node.seconds } };
     case "setSplit": return { type: "ls_split" };
     case "forward": return { type: "ls_forward", fields: { VALUE: node.value } };
     case "right": return { type: "ls_right", fields: { DEGREES: node.degrees } };

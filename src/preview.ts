@@ -21,6 +21,7 @@ interface PreviewBullet {
   r: number;
   life: number;
   charge: number;
+  curve: number;
 }
 
 /**
@@ -92,13 +93,14 @@ export class Preview implements ScriptHost {
     const a = dirDeg * DEG;
     const gap = Math.min(1, this.runner.consumeCharge() / CHARGE.fullTime);
     this.bullets.push({
-      x: 0,
-      y: 0,
+      x: Math.cos(a) * opts.muzzle,
+      y: Math.sin(a) * opts.muzzle,
       vx: Math.cos(a) * opts.speed,
       vy: Math.sin(a) * opts.speed,
       r: opts.size,
       life: opts.life,
       charge: CHARGE.min + (CHARGE.max - CHARGE.min) * gap,
+      curve: opts.curve,
     });
   }
 
@@ -189,6 +191,12 @@ export class Preview implements ScriptHost {
 
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const b = this.bullets[i];
+      if (b.curve !== 0) {
+        const a = Math.atan2(b.vy, b.vx) + b.curve * DEG * dt;
+        const speed = Math.hypot(b.vx, b.vy);
+        b.vx = Math.cos(a) * speed;
+        b.vy = Math.sin(a) * speed;
+      }
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.life -= dt;

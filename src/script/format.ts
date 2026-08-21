@@ -18,6 +18,7 @@ function categoryOf(kind: Node["kind"]): ScriptLine["category"] {
   switch (kind) {
     case "repeat":
     case "wait":
+    case "waitByIndex":
       return "control";
     case "fire":
     case "turn":
@@ -56,6 +57,9 @@ function label(node: Node): string {
     case "addSpeed": return `子彈速度增加 ${node.value}`;
     case "addSize": return `子彈大小增加 ${node.value}`;
     case "setLife": return `子彈存活 ${node.value} 秒`;
+    case "setCurve": return `子彈轉向 每秒 ${node.degrees} 度`;
+    case "setMuzzle": return `發射點距離設為 ${node.value}`;
+    case "waitByIndex": return `等待 ${node.seconds} 秒 × 迴圈次數`;
     case "setSplit": return "子彈改為分裂";
     case "forward": return `前進 ${node.value}`;
     case "right": return `右轉 ${node.degrees} 度`;

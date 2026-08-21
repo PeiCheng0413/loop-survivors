@@ -28,6 +28,10 @@ export interface BulletOpts {
   explode: boolean;
   split: boolean;
   life: number;
+  /** 每秒轉向幾度。0 代表直線飛行 */
+  curve: number;
+  /** 發射點離玩家多遠 */
+  muzzle: number;
 }
 
 /** 腳本的執行狀態。發射參數是狀態積木的作用對象 */
@@ -41,6 +45,8 @@ export interface VMState {
   explode: boolean;
   split: boolean;
   life: number;
+  curve: number;
+  muzzle: number;
   /**
    * 目前所在迴圈的圈數（從 0 起算，取最內層）。
    * 「方向旋轉 N 度 × 迴圈次數」讀的就是它。
@@ -125,6 +131,8 @@ export function* exec(
           explode: st.explode,
           split: st.split,
           life: st.life,
+          curve: st.curve,
+          muzzle: st.muzzle,
         });
         yield BLOCK_COST;
         break;
@@ -172,6 +180,21 @@ export function* exec(
       case "setLife":
         st.life = node.value;
         yield BLOCK_COST;
+        break;
+
+      case "setCurve":
+        st.curve = node.degrees;
+        yield BLOCK_COST;
+        break;
+
+      case "setMuzzle":
+        st.muzzle = node.value;
+        yield BLOCK_COST;
+        break;
+
+      case "waitByIndex":
+        // 第一圈不等，之後每圈多等一份 —— 與「方向旋轉 × 迴圈次數」同一個家族
+        yield BLOCK_COST + Math.max(0, node.seconds) * st.loopIndex;
         break;
 
       case "forward":

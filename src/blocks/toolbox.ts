@@ -14,11 +14,14 @@ import { DEFAULT_WEAPON } from "../weapons";
  * 這樣不同武器之間的排版是一致的，學生的空間記憶可以沿用。
  */
 const GROUPS: { label: string; types: string[] }[] = [
-  { label: "控制", types: ["ls_repeat", "ls_wait"] },
+  { label: "控制", types: ["ls_repeat", "ls_wait", "ls_wait_by_index"] },
   { label: "發射", types: ["ls_fire", "ls_turn", "ls_turn_by_index", "ls_aim"] },
   {
     label: "子彈狀態",
-    types: ["ls_set_speed", "ls_set_size", "ls_set_pierce", "ls_set_life"],
+    types: [
+      "ls_set_speed", "ls_set_size", "ls_set_pierce",
+      "ls_set_life", "ls_set_curve", "ls_set_muzzle",
+    ],
   },
   { label: "累加（放進迴圈會一次比一次多）", types: ["ls_add_speed", "ls_add_size"] },
   { label: "畫形狀", types: ["ls_forward", "ls_right"] },

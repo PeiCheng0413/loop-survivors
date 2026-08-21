@@ -216,4 +216,35 @@ export const BLOCK_DEFS = [
     colour: "#4CBF56",
     tooltip: "箭矢原地轉向。正 N 邊形的每次轉角 = 360 ÷ N",
   },
+  {
+    /**
+     * 與迴圈相乘效果最明顯的一塊：八方射線每發都彎，就成了旋渦。
+     * 它不取代迴圈，而是讓同一個迴圈畫出完全不同的圖形。
+     */
+    type: "ls_set_curve",
+    message0: "子彈轉向 每秒 %1 度",
+    args0: [{ type: "field_number", name: "DEGREES", value: 90, min: -360, max: 360, precision: 5 }],
+    previousStatement: null,
+    nextStatement: null,
+    colour: STATE,
+    tooltip: "子彈會沿著弧線飛。正值往右彎、負值往左彎，0 是直線",
+  },
+  {
+    type: "ls_set_muzzle",
+    message0: "發射點距離設為 %1",
+    args0: [{ type: "field_number", name: "VALUE", value: 12, min: 0, max: 160, precision: 4 }],
+    previousStatement: null,
+    nextStatement: null,
+    colour: STATE,
+    tooltip: "子彈從離角色這麼遠的地方生出來。配合旋轉迴圈就是一圈發射點",
+  },
+  {
+    type: "ls_wait_by_index",
+    message0: "等待 %1 秒 × 迴圈次數",
+    args0: [{ type: "field_number", name: "SECONDS", value: 0.05, min: 0, max: 1, precision: 0.05 }],
+    previousStatement: null,
+    nextStatement: null,
+    colour: CONTROL,
+    tooltip: "第一圈不等，之後每圈多等一份 —— 做出越來越慢的節奏",
+  },
 ];

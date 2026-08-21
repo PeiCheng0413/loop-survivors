@@ -25,6 +25,9 @@ export const BASIC_WEAPON: WeaponDef = {
     "ls_set_size",
     "ls_set_pierce",
     "ls_set_life",
+    "ls_set_curve",
+    "ls_set_muzzle",
+    "ls_wait_by_index",
     "ls_add_speed",
     "ls_add_size",
   ],
@@ -33,6 +36,8 @@ export const BASIC_WEAPON: WeaponDef = {
   cooldown: CYCLE_COOLDOWN,
 
   bullet: {
+    curve: 0,
+    muzzle: 12,
     speed: BULLET.speed,
     size: BULLET.size,
     pierce: BULLET.pierce,

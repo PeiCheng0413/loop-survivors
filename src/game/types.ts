@@ -67,6 +67,8 @@ export interface Bullet {
   homing: boolean;
   explode: boolean;
   split: boolean;
+  /** 每秒轉向幾度。0 代表直線飛行 */
+  curve: number;
 }
 
 /** 敵人掉落的經驗球 */

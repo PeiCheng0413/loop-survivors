@@ -40,6 +40,21 @@ export type Node =
   | { kind: "addSize"; id: string; value: number }
   /** 子彈存活時間設為 (value) 秒。速度 × 存活 = 射程 */
   | { kind: "setLife"; id: string; value: number }
+  /**
+   * 子彈轉向 每秒 (degrees) 度 —— 子彈會沿著弧線飛。
+   *
+   * 與迴圈相乘的效果最明顯：八方射線每發都彎，就成了旋渦。
+   */
+  | { kind: "setCurve"; id: string; degrees: number }
+  /**
+   * 發射點距離設為 (value) —— 子彈從離玩家這麼遠的地方生出來。
+   *
+   * 配合旋轉迴圈就是一圈發射點，隊形因此變寬。
+   * 它教的是「位置也是可以設定的參數」。
+   */
+  | { kind: "setMuzzle"; id: string; value: number }
+  /** 等待 (seconds) 秒 × 迴圈次數 —— 越後面的迭代等越久，做出漸慢的節奏 */
+  | { kind: "waitByIndex"; id: string; seconds: number }
   /** 子彈改為追蹤 —— 稀有積木，只能從升級卡取得 */
   | { kind: "setHoming"; id: string }
   /** 子彈改為爆裂 —— 稀有積木，只能從升級卡取得 */

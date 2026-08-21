@@ -53,6 +53,12 @@ function toNode(b: Blockly.Block): Node | null {
       return { kind: "addSize", id: b.id, value: num(b, "VALUE") };
     case "ls_set_life":
       return { kind: "setLife", id: b.id, value: num(b, "VALUE") };
+    case "ls_set_curve":
+      return { kind: "setCurve", id: b.id, degrees: num(b, "DEGREES") };
+    case "ls_set_muzzle":
+      return { kind: "setMuzzle", id: b.id, value: num(b, "VALUE") };
+    case "ls_wait_by_index":
+      return { kind: "waitByIndex", id: b.id, seconds: num(b, "SECONDS") };
     case "ls_split":
       return { kind: "setSplit", id: b.id };
     case "ls_forward":

@@ -158,9 +158,11 @@ export class World implements ScriptHost {
   fire(dirDeg: number, opts: BulletOpts): void {
     const a = dirDeg * DEG;
     const charge = chargeMultiplier(this.runner.consumeCharge());
+    // 發射點距離由腳本決定：配合旋轉迴圈就是一圈發射點，隊形因此變寬
+    const muzzle = Math.max(this.player.r, opts.muzzle);
     this.emitBullet(
-      this.player.x + Math.cos(a) * this.player.r,
-      this.player.y + Math.sin(a) * this.player.r,
+      this.player.x + Math.cos(a) * muzzle,
+      this.player.y + Math.sin(a) * muzzle,
       a,
       this.weapon.bullet.damage * this.stats.damage * this.shield.damageBuff,
       opts,
@@ -196,6 +198,7 @@ export class World implements ScriptHost {
       homing: opts.homing,
       explode: opts.explode,
       split: opts.split,
+      curve: opts.curve,
     });
   }
 
@@ -315,12 +318,23 @@ export class World implements ScriptHost {
   private moveBullets(dt: number): void {
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const b = this.bullets[i];
+      // 弧線與追蹤是兩種轉向來源：弧線是腳本設定的固定曲率，
+      // 追蹤是稀有積木給的自動修正。兩者可以疊加，效果是螺旋追擊
+      if (b.curve !== 0) this.applyCurve(b, dt);
       if (b.homing) this.steer(b, dt);
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.life -= dt;
       if (b.life <= 0) this.swapRemove(this.bullets, i);
     }
+  }
+
+  /** 讓子彈沿弧線飛：每幀把速度向量轉一點點 */
+  private applyCurve(b: Bullet, dt: number): void {
+    const a = Math.atan2(b.vy, b.vx) + b.curve * DEG * dt;
+    const speed = Math.hypot(b.vx, b.vy);
+    b.vx = Math.cos(a) * speed;
+    b.vy = Math.sin(a) * speed;
   }
 
   /**
@@ -387,6 +401,7 @@ export class World implements ScriptHost {
         homing: b.homing,
         explode: false,
         split: false,
+        curve: b.curve,
       });
     }
   }

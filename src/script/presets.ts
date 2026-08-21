@@ -21,6 +21,8 @@ const setSpeed = (value: number): Node => ({ kind: "setSpeed", id: nid(), value 
 const turnByIndex = (degrees: number): Node => ({ kind: "turnByIndex", id: nid(), degrees });
 const addSpeed = (value: number): Node => ({ kind: "addSpeed", id: nid(), value });
 const forward = (value: number): Node => ({ kind: "forward", id: nid(), value });
+const setCurve = (degrees: number): Node => ({ kind: "setCurve", id: nid(), degrees });
+const setMuzzle = (value: number): Node => ({ kind: "setMuzzle", id: nid(), value });
 const right = (degrees: number): Node => ({ kind: "right", id: nid(), degrees });
 const setSize = (value: number): Node => ({ kind: "setSize", id: nid(), value });
 const setPierce = (value: number): Node => ({ kind: "setPierce", id: nid(), value });
@@ -64,6 +66,13 @@ export const PRESETS: Script[] = [
     name: "螺旋手",
     capacity: 14,
     body: [repeat(8, [turn(44), turnByIndex(6), addSpeed(40), fire()])],
+  },
+  {
+    // 示範弧線與發射點：八方射線每發都彎，就成了旋渦；
+    // 發射點推遠之後，隊形從一個點變成一整圈
+    name: "旋渦手",
+    capacity: 14,
+    body: [setCurve(110), setMuzzle(48), repeat(8, [turn(45), fire()])],
   },
   {
     // 巢狀迴圈示範。M0 用來確認「同一塊積木塞內層或外層，畫面完全不同」

@@ -174,54 +174,94 @@ export class Renderer {
   }
 
   /**
-   * 幾何護盾。
+   * 幾何護盾的魔法特效。
    *
-   * 沒有閉合的形狀就是畫出來有缺口 —— 不做任何特殊處理，
-   * 學生的破綻因此是看得見的，而不是「沒有生效」。
+   * 由四層疊出來，全部是 Canvas 幾何繪製、零圖檔：
+   *   1. 內部能量場（放射漸層）—— 讓它讀起來是「力場」而不是一圈線
+   *   2. 外圈光暈（加法混色）—— 血量越低越暗，不用數字就看得出快破了
+   *   3. 流動的虛線 —— 沿著周長跑，護盾因此是「活的」
+   *   4. 頂點節點 —— 呼吸式脈動，同時標出學生畫的每一個轉角
+   *
+   * 頂點會亮起這點是刻意的：那些點就是「右轉」發生的位置，
+   * 特效順便把幾何結構指出來。
    */
   private drawShield(world: World): void {
     const shape = world.shield;
     // 沒閉合就什麼都不畫：戰場上不存在「半個護盾」。
     // 學生要看自己畫錯在哪，是在暫停時的預覽視窗裡看（見 preview.ts）。
-    if (!shape || shape.sides === 0 || !world.shieldClosed) return;
+    if (!shape || shape.sides === 0 || !world.shieldClosed || !world.shieldActive) return;
+
     const ctx = this.ctx;
-    const px = world.player.x;
-    const py = world.player.y;
-    const active = world.shieldActive;
+    const t = world.time;
     const strength = world.shieldHp / SHIELD.maxHp;
+    const flash = world.shieldFlash;
+    // 呼吸：血量低時跳得更快，像心跳加速
+    const pulse = 0.5 + 0.5 * Math.sin(t * (3 + (1 - strength) * 5));
 
     ctx.save();
-    ctx.translate(px, py);
+    ctx.translate(world.player.x, world.player.y);
 
-    if (active) {
-      // 外層光暈用加法混色，血量越低越暗 —— 不用數字就看得出護盾快破了
-      ctx.globalCompositeOperation = "lighter";
-      ctx.strokeStyle = COLOR.shield;
-      ctx.lineWidth = SHIELD.thickness * 2;
-      ctx.globalAlpha = 0.1 + strength * 0.18;
-      this.tracePath(shape.points);
-      ctx.stroke();
-      ctx.globalCompositeOperation = "source-over";
-    }
+    // 1. 內部能量場
+    const grad = ctx.createRadialGradient(0, 0, shape.radius * 0.25, 0, 0, shape.radius);
+    grad.addColorStop(0, "rgba(92, 225, 255, 0)");
+    grad.addColorStop(1, `rgba(92, 225, 255, ${(0.05 + strength * 0.07 + flash * 0.18).toFixed(3)})`);
+    ctx.fillStyle = grad;
+    this.tracePath(shape.points, true);
+    ctx.fill();
 
-    ctx.globalAlpha = active ? 0.55 + strength * 0.45 : 0.18;
-    ctx.strokeStyle = active ? COLOR.shield : COLOR.shieldDown;
-    ctx.lineWidth = active ? 3 : 2;
-    // 破盾期間畫成虛線，與「還在但快破了」明確區分
-    if (!active) ctx.setLineDash([6, 8]);
-    this.tracePath(shape.points);
+    ctx.globalCompositeOperation = "lighter";
+
+    // 2. 外圈光暈
+    ctx.strokeStyle = COLOR.shield;
+    ctx.lineWidth = SHIELD.thickness * 2.2;
+    ctx.globalAlpha = 0.05 + strength * 0.12 + flash * 0.3;
+    this.tracePath(shape.points, true);
+    ctx.stroke();
+
+    // 3. 流動的虛線：沿著周長跑，看起來像能量在循環
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.35 + pulse * 0.25;
+    ctx.setLineDash([10, 16]);
+    ctx.lineDashOffset = -t * 45;
+    this.tracePath(shape.points, true);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.globalAlpha = 1;
 
+    // 4. 頂點節點：學生每個「右轉」的位置
+    ctx.fillStyle = flash > 0.1 ? "#ffffff" : COLOR.shield;
+    for (let i = 0; i < shape.sides; i++) {
+      const p = shape.points[i];
+      const beat = 0.5 + 0.5 * Math.sin(t * 3 + i * 0.9);
+      ctx.globalAlpha = 0.4 + beat * 0.5;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2.5 + beat * 1.6 + flash * 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.globalCompositeOperation = "source-over";
+
+    // 核心線條：血量越低越淡
+    ctx.globalAlpha = 0.5 + strength * 0.4;
+    ctx.strokeStyle = flash > 0.3 ? "#ffffff" : COLOR.shield;
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = "round";
+    this.tracePath(shape.points, true);
+    ctx.stroke();
+
+    ctx.globalAlpha = 1;
     ctx.restore();
   }
 
-  private tracePath(points: { x: number; y: number }[]): void {
+  /**
+   * 描出護盾路徑。close 為真時呼叫 closePath ——
+   * 少了它，頭尾兩段會各自以平頭端點收邊，接縫處看得到一個小缺口。
+   */
+  private tracePath(points: { x: number; y: number }[], close = false): void {
     const ctx = this.ctx;
     ctx.beginPath();
     ctx.moveTo(points[0].x, points[0].y);
     for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+    if (close) ctx.closePath();
   }
 
   private drawPlayer(world: World): void {

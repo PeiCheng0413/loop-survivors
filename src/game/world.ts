@@ -53,6 +53,8 @@ export class World implements ScriptHost {
   shieldHp = SHIELD.maxHp;
   /** 破盾後的剩餘恢復時間。> 0 代表護盾目前不存在 */
   shieldDown = 0;
+  /** 剛擋下敵人時的閃光殘量，純視覺 */
+  shieldFlash = 0;
   /** 由腳本規格換算出的移動速度倍率。火力換機動 */
   private mobility = 1;
 
@@ -386,6 +388,9 @@ export class World implements ScriptHost {
    * 沒有邊的地方就擋不住，學生畫錯的破綻直接變成敵人的通道。
    */
   private updateShield(dt: number): void {
+    // 閃光每幀衰減，與護盾是否存在無關
+    if (this.shieldFlash > 0) this.shieldFlash = Math.max(0, this.shieldFlash - dt * 5);
+
     if (this.shieldDown > 0) {
       this.shieldDown -= dt;
       if (this.shieldDown <= 0) this.shieldHp = SHIELD.maxHp;
@@ -418,6 +423,7 @@ export class World implements ScriptHost {
         e.knockY = hit.ny * SHIELD.knockback;
 
         this.shieldHp -= SHIELD.hitCost * dt * 60;
+        this.shieldFlash = 1;
         if (this.shieldHp <= 0) {
           this.shieldHp = 0;
           this.shieldDown = SHIELD.regenDelay;

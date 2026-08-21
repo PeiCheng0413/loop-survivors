@@ -146,6 +146,8 @@ export class Preview implements ScriptHost {
     for (let i = 1; i < shape.points.length; i++) {
       ctx.lineTo(shape.points[i].x, shape.points[i].y);
     }
+    // 閉合時要 closePath，否則接縫處會有平頭端點造成的小缺口
+    if (closed) ctx.closePath();
     ctx.stroke();
 
     if (!closed) {

@@ -63,15 +63,24 @@ export function buildShield(script: Script): ShieldShape {
   };
   walk(script.body);
 
-  // 以形心置中，讓玩家站在形狀正中間 —— 否則護盾會偏在身體一側
+  // 以形心置中，讓玩家站在形狀正中間 —— 否則護盾會偏在身體一側。
+  //
+  // 閉合的形狀最後一個頂點會與第一個重疊，計入形心會讓那個頂點被算兩次，
+  // 整個圖形因此偏向起點。算之前要先排除掉。
+  const first0 = points[0];
+  const last0 = points[points.length - 1];
+  const duplicated =
+    points.length > 2 && Math.hypot(last0.x - first0.x, last0.y - first0.y) < 1e-6;
+  const counted = duplicated ? points.length - 1 : points.length;
+
   let cx = 0;
   let cy = 0;
-  for (const p of points) {
-    cx += p.x;
-    cy += p.y;
+  for (let i = 0; i < counted; i++) {
+    cx += points[i].x;
+    cy += points[i].y;
   }
-  cx /= points.length;
-  cy /= points.length;
+  cx /= counted;
+  cy /= counted;
   for (const p of points) {
     p.x -= cx;
     p.y -= cy;

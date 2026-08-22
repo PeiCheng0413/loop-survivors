@@ -715,3 +715,65 @@ html, body {
   font-size: 12px;
   color: var(--dim);
 }
+
+/* 腳本槽位。只有解鎖第二格之後才顯示 —— 在那之前它只是一顆沒用的按鈕，
+   反而讓學生以為自己漏了什麼功能。 */
+#slots {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+  padding: 8px 12px 0;
+}
+
+#slots.hidden {
+  display: none;
+}
+
+#slots button {
+  flex: 1;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--dim);
+  background: #131c2b;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#slots button.active {
+  color: #0b0f18;
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+#slots button.locked {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* 遊玩中的槽位指示：積木監視器上方一排小圓角，看得出現在跑的是哪一套 */
+.mon-slots {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.mon-slot {
+  min-width: 20px;
+  padding: 1px 6px;
+  font-size: 11px;
+  text-align: center;
+  color: var(--dim);
+  background: rgba(12, 18, 30, 0.5);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.mon-slot.active {
+  color: #0b0f18;
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}

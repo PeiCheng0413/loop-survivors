@@ -22,6 +22,7 @@ export class ScriptMonitor {
   private lastCycle = -1;
   private headId: string | null = null;
 
+  private slots: HTMLElement;
   private progress: HTMLElement;
   private list: HTMLElement;
 
@@ -29,7 +30,11 @@ export class ScriptMonitor {
     this.root = root;
     // 進度條與積木列表講的是同一件事（腳本跑到哪），放在一起才不會
     // 在畫面上變成兩個互不相干、還會互相疊到的元素
-    root.innerHTML = `<div class="mon-progress"><i></i></div><div class="mon-list"></div>`;
+    root.innerHTML =
+      `<div class="mon-slots"></div>` +
+      `<div class="mon-progress"><i></i></div>` +
+      `<div class="mon-list"></div>`;
+    this.slots = root.querySelector(".mon-slots")!;
     this.progress = root.querySelector(".mon-progress i")!;
     this.list = root.querySelector(".mon-list")!;
   }
@@ -59,6 +64,22 @@ export class ScriptMonitor {
       this.lineEls.set(line.id, el);
       this.countEls.set(line.id, count);
     }
+  }
+
+  /**
+   * 顯示目前用的是哪一個腳本槽。
+   *
+   * 遊玩中積木面板是收起來的，若不標出來，按了快速鍵也不知道有沒有切成功。
+   */
+  setSlots(active: number, unlocked: number): void {
+    if (unlocked <= 1) {
+      this.slots.innerHTML = "";
+      return;
+    }
+    const html = Array.from({ length: unlocked }, (_, i) =>
+      `<span class="mon-slot ${i === active ? "active" : ""}">${i + 1}</span>`,
+    ).join("");
+    if (this.slots.innerHTML !== html) this.slots.innerHTML = html;
   }
 
   setVisible(visible: boolean): void {

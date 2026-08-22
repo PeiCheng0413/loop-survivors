@@ -15,6 +15,7 @@ import { drawCards, type CardContext } from "./cards";
 import { GameOver } from "./gameover";
 import { saveRecord } from "./records";
 import { adviceFor, capacityLeftOf } from "./advice";
+import { MAX_SLOTS, SlotManager } from "./slots";
 import { SHIELD_PRESET, PRESETS } from "./script/presets";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
@@ -31,6 +32,7 @@ const previewCanvas = document.querySelector<HTMLCanvasElement>("#preview-canvas
 const previewPanel = document.querySelector<HTMLElement>("#preview")!;
 const levelUpRoot = document.querySelector<HTMLElement>("#levelup")!;
 const gameOverRoot = document.querySelector<HTMLElement>("#gameover")!;
+const slotsRoot = document.querySelector<HTMLElement>("#slots")!;
 const splitterRoot = document.querySelector<HTMLElement>("#splitter")!;
 
 /**
@@ -93,6 +95,9 @@ const shapeEditor = new Editor(
 );
 
 const gameOver = new GameOver(gameOverRoot);
+const slots = new SlotManager();
+/** 已處理過的王擊殺數，用來偵測「剛打贏一隻」 */
+let handledBossKills = 0;
 
 /** 目前在哪個分頁。狀態列與預覽都跟著它換內容 */
 let shapeTab = false;
@@ -191,6 +196,35 @@ tabs.addEventListener("click", (e) => {
   active.resetView();
 });
 
+/**
+ * 切換腳本槽。遊玩中直接生效，不需要暫停 ——
+ * 那正是這個後期獎勵的價值：把「換排列」從幾十秒縮到一個按鍵。
+ */
+function switchSlot(index: number): void {
+  const next = slots.switchTo(index, editor.read());
+  if (next === undefined) return; // 已鎖或已在該格
+  if (next) editor.load(next); // 空的槽位就保留目前內容，避免切過去變空白
+  renderSlots();
+}
+
+function renderSlots(): void {
+  slotsRoot.classList.toggle("hidden", !slots.enabled);
+  if (!slots.enabled) return;
+  slotsRoot.innerHTML = Array.from({ length: MAX_SLOTS }, (_, i) => {
+    const locked = i >= slots.unlocked;
+    const active = i === slots.activeIndex;
+    return `<button type="button" data-slot="${i}" class="${active ? "active" : ""}${locked ? " locked" : ""}">${
+      locked ? "🔒" : `腳本 ${i + 1}`
+    }</button>`;
+  }).join("");
+}
+
+slotsRoot.addEventListener("click", (e) => {
+  const btn = (e.target as HTMLElement).closest("button");
+  if (btn?.dataset.slot) switchSlot(Number(btn.dataset.slot));
+});
+renderSlots();
+
 function loadPreset(i: number): void {
   editor.load(PRESETS[i]); // 觸發 onChange，腳本會自動套用
 }
@@ -288,6 +322,16 @@ function frame(now: number): void {
   if (dt > 0.25) dt = 0.25;
   fps += (1 / Math.max(dt, 1e-6) - fps) * 0.1;
 
+  // 打贏王就解鎖一格腳本槽（永久，跨局保留）
+  if (world.bossKills > handledBossKills) {
+    handledBossKills = world.bossKills;
+    if (slots.unlockNext(editor.read())) {
+      renderSlots();
+      setPaused(true);
+      hud.showUnlock(`解鎖腳本槽 ${slots.unlocked}`, "按數字鍵即時切換不同排列，不必暫停");
+    }
+  }
+
   // 死亡結算：只在剛死的那一刻結算一次
   if (world.dead && !gameOver.isOpen) {
     const script = editor.read();
@@ -337,12 +381,16 @@ function frame(now: number): void {
         hud.clearTelegraph();
         setPaused(!paused);
       }
+      // 數字鍵：開打前選角色，開打後切換腳本槽。
+      // 兩者不會同時有意義，所以共用同一排按鍵，不必再記一組
+      for (let i = 0; i < Math.max(PRESETS.length, MAX_SLOTS); i++) {
+        if (!input.justPressed(`Digit${i + 1}`)) continue;
+        if (!started && i < PRESETS.length) loadPreset(i);
+        else if (started) switchSlot(i);
+      }
       if (input.justPressed("KeyR")) {
         gameOver.close();
         world.reset(editor.read());
-      }
-      for (let i = 0; i < PRESETS.length; i++) {
-        if (input.justPressed(`Digit${i + 1}`)) loadPreset(i);
       }
     }
   }
@@ -374,6 +422,7 @@ function frame(now: number): void {
   editor.trackCounts(trace, world.runner.cycles);
   // 監視器只在遊玩時出現；暫停時看的是左邊真正的積木
   monitor.setVisible(!paused && started);
+  monitor.setSlots(slots.activeIndex, slots.unlocked);
   monitor.update(trace, dt, world.runner.cycles, world.runner.progress);
   hud.update(world, fps, paused, started);
   input.endFrame();

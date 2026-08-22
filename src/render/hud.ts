@@ -15,6 +15,8 @@ export class Hud {
   private bossLabel: HTMLElement;
   /** 階段預告。顯示到玩家按下繼續為止 */
   private telegraph: Phase | null = null;
+  /** 解鎖通知，同樣顯示到玩家按下繼續 */
+  private unlock: { title: string; hint: string } | null = null;
   private banner: HTMLElement;
 
   constructor(root: HTMLElement) {
@@ -46,6 +48,15 @@ export class Hud {
 
   clearTelegraph(): void {
     this.telegraph = null;
+    this.unlock = null;
+  }
+
+  /**
+   * 解鎖通知。與階段預告共用同一塊橫幅 —— 兩者都是「停下來看一下」的時刻，
+   * 分成兩套介面只會讓畫面更雜。
+   */
+  showUnlock(title: string, hint: string): void {
+    this.unlock = { title, hint };
   }
 
   update(world: World, fps: number, paused: boolean, started = true): void {
@@ -78,7 +89,12 @@ export class Hud {
       // 死亡的訊息由結算畫面負責，HUD 不重複顯示
       html = "";
     }
-    else if (this.telegraph) {
+    else if (this.unlock) {
+      html =
+        `<span class="banner-title">${this.unlock.title}</span>` +
+        `<span class="banner-hint">${this.unlock.hint}</span>` +
+        `<span class="banner-key">按空白鍵繼續</span>`;
+    } else if (this.telegraph) {
       html =
         `<span class="banner-title">第 ${world.round} 輪　${this.telegraph.name}</span>` +
         `<span class="banner-hint"></span>` +

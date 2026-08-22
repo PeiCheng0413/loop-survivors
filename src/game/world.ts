@@ -35,6 +35,8 @@ export class World implements ScriptHost {
 
   level = 1;
   xp = 0;
+  /** 已擊殺的王數量。每打贏一隻解鎖一項永久能力（見 docs/DECISIONS.md §9c） */
+  bossKills = 0;
   /** 還沒被玩家處理掉的升級次數。主迴圈看到 > 0 就暫停並跳卡片 */
   pendingLevelUps = 0;
   stats: Stats = { damage: 1, moveSpeed: 1, pickup: 1, haste: 0 };
@@ -141,6 +143,8 @@ export class World implements ScriptHost {
     this.gems.length = 0;
     this.level = 1;
     this.xp = 0;
+    // 王的擊殺數不重置：解鎖是永久的，不會因為重開一局而收回
+
     this.pendingLevelUps = 0;
     this.stats = { damage: 1, moveSpeed: 1, pickup: 1, haste: 0 };
     this.time = 0;
@@ -501,6 +505,7 @@ export class World implements ScriptHost {
       if (this.enemies[i].hp <= 0) {
         const e = this.enemies[i];
         if (e === this.boss) this.boss = null;
+        if (e.kind === "boss") this.bossKills++;
         this.gems.push({ x: e.x, y: e.y, value: e.xp });
         this.swapRemove(this.enemies, i);
         this.kills++;

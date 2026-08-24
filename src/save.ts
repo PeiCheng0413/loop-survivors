@@ -63,3 +63,54 @@ export function describe(id: Identity): string {
   const seat = id.seat.trim() || "（未填座號）";
   return `${klass} ${seat} 號`;
 }
+
+/**
+ * 示範存檔的內容。
+ *
+ * 直接在程式裡組出來，不必經過分享碼的字串傳遞 —— 長字串靠人工複製
+ * 極易出錯（實測就發生過：同樣長度、同樣字元集，只錯一個字元）。
+ * 老師課堂示範、或想快速看到「有兩個腳本槽長怎樣」時用得上。
+ */
+export function demoSave(shield: Script): SaveData {
+  let n = 0;
+  const id = () => `demo${++n}`;
+  const spread: Script = {
+    name: "散射流",
+    capacity: 14,
+    body: [
+      {
+        kind: "repeat", id: id(), times: 8,
+        body: [
+          { kind: "turn", id: id(), degrees: 45 },
+          { kind: "fire", id: id() },
+        ],
+      },
+    ],
+  };
+  const charged: Script = {
+    name: "蓄力流",
+    capacity: 14,
+    body: [
+      { kind: "aim", id: id(), target: "nearest" },
+      {
+        kind: "repeat", id: id(), times: 3,
+        body: [
+          { kind: "fire", id: id() },
+          { kind: "wait", id: id(), seconds: 0.35 },
+        ],
+      },
+    ],
+  };
+
+  return {
+    v: 1,
+    id: { klass: "示範班", seat: "0" },
+    slots: [spread, charged, null],
+    activeSlot: 0,
+    unlockedSlots: 2,
+    shield,
+    bossKills: 2,
+    best: [],
+    at: new Date().toISOString().slice(0, 16).replace("T", " "),
+  };
+}

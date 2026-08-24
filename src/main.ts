@@ -17,7 +17,7 @@ import { saveRecord } from "./records";
 import { adviceFor, capacityLeftOf } from "./advice";
 import { MAX_SLOTS, SlotManager } from "./slots";
 import { decode, encode, type Identity } from "./sharecode";
-import { describe, loadIdentity, saveIdentity, type SaveData } from "./save";
+import { demoSave, describe, loadIdentity, saveIdentity, type SaveData } from "./save";
 import { loadRecords, mergeRecords } from "./records";
 import { SHIELD_PRESET, PRESETS } from "./script/presets";
 
@@ -304,14 +304,8 @@ document.querySelector("#save-load")!.addEventListener("click", async () => {
     return;
   }
 
-  slots.restore(data.slots, data.activeSlot, data.unlockedSlots);
-  const active = slots.scriptAt(slots.activeIndex);
-  if (active) editor.load(active);
-  if (data.shield) shapeEditor.load(data.shield);
-  world.bossKills = data.bossKills ?? 0;
-  handledBossKills = world.bossKills;
+  applySave(data);
   mergeRecords(data.best ?? []);
-  renderSlots();
 
   // 身分一定要講出來 —— 這是「用了別人的碼」唯一會被發現的地方
   const who = describe(data.id);
@@ -321,6 +315,23 @@ document.querySelector("#save-load")!.addEventListener("click", async () => {
     setStatus(`已讀取 ${who} 的存檔（${data.at}）`, "ok");
   }
 });
+
+document.querySelector("#save-demo")!.addEventListener("click", () => {
+  // 直接套用物件，不繞分享碼字串 —— 長字串經過複製貼上極易出錯
+  applySave(demoSave(shapeEditor.read()));
+  setStatus("已載入示範存檔：兩套腳本，按數字鍵 1、2 切換", "ok");
+});
+
+/** 把一份存檔套用到目前的遊戲狀態 */
+function applySave(data: SaveData): void {
+  slots.restore(data.slots, data.activeSlot, data.unlockedSlots);
+  const active = slots.scriptAt(slots.activeIndex);
+  if (active) editor.load(active);
+  if (data.shield) shapeEditor.load(data.shield);
+  world.bossKills = data.bossKills ?? 0;
+  handledBossKills = world.bossKills;
+  renderSlots();
+}
 
 function loadPreset(i: number): void {
   editor.load(PRESETS[i]); // 觸發 onChange，腳本會自動套用

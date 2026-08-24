@@ -34,22 +34,25 @@
             <input id="save-seat" type="text" placeholder="座號" maxlength="4" />
           </div>
           <div class="save-note">
-            班級座號會寫進分享碼裡。交作業時老師看得出這是誰的存檔 ——
-            用別人的碼會顯示別人的名字。
+            班級座號會寫進存檔檔案裡。交作業時老師看得出這是誰的 ——
+            用別人的檔案會顯示別人的名字。
           </div>
         </div>
 
         <div class="save-section">
-          <div class="save-title">產生分享碼</div>
-          <button id="save-make" type="button" class="save-btn">產生</button>
-          <textarea id="save-out" readonly placeholder="按「產生」後這裡會出現一長串文字，全選複製交給老師"></textarea>
-          <button id="save-copy" type="button" class="save-btn ghost">複製</button>
+          <div class="save-title">存檔</div>
+          <button id="save-make" type="button" class="save-btn">下載我的存檔（.md）</button>
+          <div class="save-note">
+            檔名會帶上你的班級座號。檔案裡看得到你寫的腳本，老師不用開遊戲就能改。
+          </div>
         </div>
 
         <div class="save-section">
-          <div class="save-title">讀取分享碼</div>
-          <textarea id="save-in" placeholder="把分享碼貼在這裡"></textarea>
-          <button id="save-load" type="button" class="save-btn ghost">讀取</button>
+          <div class="save-title">讀取存檔</div>
+          <label id="save-drop" for="save-file">
+            <span>把 .md 檔案拖進來，或點這裡選擇</span>
+          </label>
+          <input id="save-file" type="file" accept=".md,.txt,text/markdown,text/plain" hidden />
           <div id="save-status" class="save-note"></div>
         </div>
 
@@ -59,6 +62,7 @@
           <div class="save-note">
             課堂示範用。載入後會有「散射流」與「蓄力流」兩套腳本，
             按數字鍵 1、2 可以即時切換。
+          </div>
         </div>
       </div>
       <div id="panel-status"></div>

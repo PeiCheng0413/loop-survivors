@@ -18,6 +18,7 @@ import { adviceFor, capacityLeftOf } from "./advice";
 import { MAX_SLOTS, SlotManager } from "./slots";
 import { decode, encode, type Identity } from "./sharecode";
 import { demoSave, describe, loadIdentity, saveIdentity, type SaveData } from "./save";
+import { buildMarkdown, download, extractCode, filenameFor } from "./savefile";
 import { loadRecords, mergeRecords } from "./records";
 import { SHIELD_PRESET, PRESETS } from "./script/presets";
 
@@ -39,9 +40,9 @@ const slotsRoot = document.querySelector<HTMLElement>("#slots")!;
 const savePanel = document.querySelector<HTMLElement>("#savepanel")!;
 const classInput = document.querySelector<HTMLInputElement>("#save-class")!;
 const seatInput = document.querySelector<HTMLInputElement>("#save-seat")!;
-const saveOut = document.querySelector<HTMLTextAreaElement>("#save-out")!;
-const saveIn = document.querySelector<HTMLTextAreaElement>("#save-in")!;
 const saveStatus = document.querySelector<HTMLElement>("#save-status")!;
+const saveDrop = document.querySelector<HTMLElement>("#save-drop")!;
+const saveFile = document.querySelector<HTMLInputElement>("#save-file")!;
 const splitterRoot = document.querySelector<HTMLElement>("#splitter")!;
 
 /**
@@ -259,7 +260,7 @@ function setStatus(text: string, kind: "" | "ok" | "warn" | "bad"): void {
 document.querySelector("#save-make")!.addEventListener("click", async () => {
   const id = currentIdentity();
   if (!id.klass || !id.seat) {
-    setStatus("請先填班級與座號 —— 沒有署名的分享碼老師無法辨識是誰的", "bad");
+    setStatus("請先填班級與座號 —— 沒有署名的存檔老師無法辨識是誰的", "bad");
     return;
   }
   saveIdentity(id);
@@ -276,44 +277,66 @@ document.querySelector("#save-make")!.addEventListener("click", async () => {
     best: loadRecords(),
     at: new Date().toISOString().slice(0, 16).replace("T", " "),
   };
-  saveOut.value = await encode(data);
-  setStatus(`已產生 ${describe(id)} 的分享碼，全選複製交給老師`, "ok");
+  const code = await encode(data);
+  download(filenameFor(data), buildMarkdown(data, code));
+  setStatus(`已下載 ${describe(id)} 的存檔`, "ok");
 });
 
-document.querySelector("#save-copy")!.addEventListener("click", async () => {
-  if (!saveOut.value) return;
-  try {
-    await navigator.clipboard.writeText(saveOut.value);
-    setStatus("已複製到剪貼簿", "ok");
-  } catch {
-    // 沒有剪貼簿權限時退回手動選取，不要讓學生卡住
-    saveOut.select();
-    setStatus("請按 Cmd/Ctrl + C 複製", "warn");
+/**
+ * 讀取存檔檔案。
+ *
+ * 只認檔案裡的存檔碼那一行，所以老師在檔案裡加註解、改排版都不影響。
+ */
+async function loadFromText(text: string): Promise<void> {
+  const code = extractCode(text);
+  if (!code) {
+    setStatus("這個檔案裡找不到存檔碼，確認是遊戲產生的 .md 檔", "bad");
+    return;
   }
-});
-
-document.querySelector("#save-load")!.addEventListener("click", async () => {
-  const result = await decode<SaveData>(saveIn.value);
+  const result = await decode<SaveData>(code);
   if (!result.ok || !result.data) {
     setStatus(result.message, "bad");
     return;
   }
   const data = result.data;
   if (data.v !== 1) {
-    setStatus("這串碼來自不同版本的遊戲，無法讀取", "bad");
+    setStatus("這個存檔來自不同版本的遊戲，無法讀取", "bad");
     return;
   }
 
   applySave(data);
   mergeRecords(data.best ?? []);
 
-  // 身分一定要講出來 —— 這是「用了別人的碼」唯一會被發現的地方
+  // 身分一定要講出來 —— 這是「用了別人的存檔」唯一會被發現的地方
   const who = describe(data.id);
-  if (!result.authentic) {
-    setStatus(`已讀取 ${who} 的存檔，但這串碼被修改過`, "warn");
-  } else {
-    setStatus(`已讀取 ${who} 的存檔（${data.at}）`, "ok");
-  }
+  setStatus(
+    result.authentic
+      ? `已讀取 ${who} 的存檔（${data.at}）`
+      : `已讀取 ${who} 的存檔，但這個檔案被修改過`,
+    result.authentic ? "ok" : "warn",
+  );
+}
+
+saveFile.addEventListener("change", async () => {
+  const file = saveFile.files?.[0];
+  if (!file) return;
+  await loadFromText(await file.text());
+  saveFile.value = ""; // 清空才能重複選同一個檔案
+});
+
+for (const type of ["dragenter", "dragover"]) {
+  saveDrop.addEventListener(type, (e) => {
+    e.preventDefault();
+    saveDrop.classList.add("dragover");
+  });
+}
+for (const type of ["dragleave", "drop"]) {
+  saveDrop.addEventListener(type, () => saveDrop.classList.remove("dragover"));
+}
+saveDrop.addEventListener("drop", async (e) => {
+  e.preventDefault();
+  const file = (e as DragEvent).dataTransfer?.files?.[0];
+  if (file) await loadFromText(await file.text());
 });
 
 document.querySelector("#save-demo")!.addEventListener("click", () => {

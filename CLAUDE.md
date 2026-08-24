@@ -77,8 +77,9 @@ src/
   records.ts         本機成績（localStorage）
   advice.ts          **依腳本結構與死法給建議 —— 全遊戲唯一主動教學的地方**
   slots.ts           腳本記憶槽（打贏王解鎖，跨局保留）
-  sharecode.ts       分享碼的編碼與簽章（**只能可歸屬＋防手改，無法真正防偽**）
-  save.ts            分享碼存什麼、班級座號
+  sharecode.ts       存檔碼的編碼與簽章（**只能可歸屬＋防手改，無法真正防偽**）
+  save.ts            存檔內容、班級座號、示範存檔
+  savefile.ts        .md 檔案的產生與解析（老師可直接讀學生的腳本）
   main.ts            組裝與主迴圈
 tools/
   sim.ts             無頭模擬器（平衡量測）

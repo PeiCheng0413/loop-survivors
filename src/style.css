@@ -822,13 +822,27 @@ html, body {
   border-radius: 6px;
 }
 
-#savepanel textarea {
-  height: 74px;
-  resize: vertical;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
-  line-height: 1.5;
-  word-break: break-all;
+/* 拖放區。檔案流程取代了複製貼上 —— 五百多字元的隨機字串，
+   學生複製時漏字、老師轉貼時被編輯器改字，都會讓存檔失效，
+   而且失敗時看不出哪裡錯。 */
+#save-drop {
+  display: grid;
+  place-items: center;
+  padding: 20px 12px;
+  font-size: 12px;
+  color: var(--dim);
+  text-align: center;
+  background: #0b1220;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 120ms, color 120ms;
+}
+
+#save-drop:hover,
+#save-drop.dragover {
+  color: var(--fg);
+  border-color: var(--accent);
 }
 
 #savepanel input:focus,

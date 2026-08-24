@@ -43,6 +43,23 @@ export class SlotManager {
     return this.scripts[index] ?? null;
   }
 
+  /** 匯出目前所有槽位的狀態，給分享碼用 */
+  snapshot(): { slots: (Script | null)[]; active: number; unlocked: number } {
+    return { slots: [...this.scripts], active: this.active, unlocked: this.unlockedCount };
+  }
+
+  /** 從分享碼還原。解鎖數同時寫回 localStorage，讓它繼續是永久能力 */
+  restore(slots: (Script | null)[], active: number, unlocked: number): void {
+    for (let i = 0; i < MAX_SLOTS; i++) this.scripts[i] = slots[i] ?? null;
+    this.unlockedCount = Math.min(MAX_SLOTS, Math.max(1, unlocked));
+    this.active = Math.min(this.unlockedCount - 1, Math.max(0, active));
+    try {
+      localStorage.setItem(STORAGE_KEY, String(this.unlockedCount));
+    } catch {
+      // 存不下來只影響跨局保留
+    }
+  }
+
   /** 把目前編輯中的腳本寫回當前槽位。切換或存檔前一定要先呼叫 */
   store(script: Script): void {
     this.scripts[this.active] = script;

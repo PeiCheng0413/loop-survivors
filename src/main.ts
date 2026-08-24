@@ -16,6 +16,9 @@ import { GameOver } from "./gameover";
 import { saveRecord } from "./records";
 import { adviceFor, capacityLeftOf } from "./advice";
 import { MAX_SLOTS, SlotManager } from "./slots";
+import { decode, encode, type Identity } from "./sharecode";
+import { describe, loadIdentity, saveIdentity, type SaveData } from "./save";
+import { loadRecords, mergeRecords } from "./records";
 import { SHIELD_PRESET, PRESETS } from "./script/presets";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
@@ -33,6 +36,12 @@ const previewPanel = document.querySelector<HTMLElement>("#preview")!;
 const levelUpRoot = document.querySelector<HTMLElement>("#levelup")!;
 const gameOverRoot = document.querySelector<HTMLElement>("#gameover")!;
 const slotsRoot = document.querySelector<HTMLElement>("#slots")!;
+const savePanel = document.querySelector<HTMLElement>("#savepanel")!;
+const classInput = document.querySelector<HTMLInputElement>("#save-class")!;
+const seatInput = document.querySelector<HTMLInputElement>("#save-seat")!;
+const saveOut = document.querySelector<HTMLTextAreaElement>("#save-out")!;
+const saveIn = document.querySelector<HTMLTextAreaElement>("#save-in")!;
+const saveStatus = document.querySelector<HTMLElement>("#save-status")!;
 const splitterRoot = document.querySelector<HTMLElement>("#splitter")!;
 
 /**
@@ -176,13 +185,17 @@ shapeRoot.classList.add("hidden");
 tabs.addEventListener("click", (e) => {
   const btn = (e.target as HTMLElement).closest("button");
   if (!btn) return;
-  const isShape = btn.dataset.tab === "shape";
-  blocklyRoot.classList.toggle("hidden", isShape);
+  const tab = btn.dataset.tab ?? "attack";
+  const isShape = tab === "shape";
+  const isSave = tab === "save";
+  blocklyRoot.classList.toggle("hidden", tab !== "attack");
   shapeRoot.classList.toggle("hidden", !isShape);
+  savePanel.classList.toggle("hidden", !isSave);
+  slotsRoot.classList.toggle("hidden", tab !== "attack" || !slots.enabled);
   shapeTab = isShape;
   updatePanelStatus();
-  // 圖例跟著換：容量與 ×N 是攻擊腳本的概念，在護盾分頁只會誤導
-  headAttack.classList.toggle("hidden", isShape);
+  // 圖例跟著換：容量與 ×N 是攻擊腳本的概念，在其他分頁只會誤導
+  headAttack.classList.toggle("hidden", tab !== "attack");
   headShape.classList.toggle("hidden", !isShape);
   // 暫停預覽跟著分頁切換內容：看護盾就顯示形狀，看攻擊就顯示彈幕
   preview.setMode(isShape ? "shape" : "attack");
@@ -191,9 +204,12 @@ tabs.addEventListener("click", (e) => {
   }
   // 隱藏期間 Blockly 量不到尺寸，切回來一定要重新量測並回到原點，
   // 否則積木會停在上次隱藏前的捲動位置
-  const active = isShape ? shapeEditor : editor;
-  active.resize();
-  active.resetView();
+  // 存檔分頁沒有 Blockly 工作區，不需要重新量測
+  if (!isSave) {
+    const active = isShape ? shapeEditor : editor;
+    active.resize();
+    active.resetView();
+  }
 });
 
 /**
@@ -224,6 +240,87 @@ slotsRoot.addEventListener("click", (e) => {
   if (btn?.dataset.slot) switchSlot(Number(btn.dataset.slot));
 });
 renderSlots();
+
+// ---- 分享碼 ------------------------------------------------------------
+
+const identity = loadIdentity();
+classInput.value = identity.klass;
+seatInput.value = identity.seat;
+
+function currentIdentity(): Identity {
+  return { klass: classInput.value.trim(), seat: seatInput.value.trim() };
+}
+
+function setStatus(text: string, kind: "" | "ok" | "warn" | "bad"): void {
+  saveStatus.className = `save-note ${kind}`;
+  saveStatus.textContent = text;
+}
+
+document.querySelector("#save-make")!.addEventListener("click", async () => {
+  const id = currentIdentity();
+  if (!id.klass || !id.seat) {
+    setStatus("請先填班級與座號 —— 沒有署名的分享碼老師無法辨識是誰的", "bad");
+    return;
+  }
+  saveIdentity(id);
+  slots.store(editor.read()); // 先把編輯中的腳本寫回槽位，否則會存到舊的
+  const snap = slots.snapshot();
+  const data: SaveData = {
+    v: 1,
+    id,
+    slots: snap.slots,
+    activeSlot: snap.active,
+    unlockedSlots: snap.unlocked,
+    shield: shapeEditor.read(),
+    bossKills: world.bossKills,
+    best: loadRecords(),
+    at: new Date().toISOString().slice(0, 16).replace("T", " "),
+  };
+  saveOut.value = await encode(data);
+  setStatus(`已產生 ${describe(id)} 的分享碼，全選複製交給老師`, "ok");
+});
+
+document.querySelector("#save-copy")!.addEventListener("click", async () => {
+  if (!saveOut.value) return;
+  try {
+    await navigator.clipboard.writeText(saveOut.value);
+    setStatus("已複製到剪貼簿", "ok");
+  } catch {
+    // 沒有剪貼簿權限時退回手動選取，不要讓學生卡住
+    saveOut.select();
+    setStatus("請按 Cmd/Ctrl + C 複製", "warn");
+  }
+});
+
+document.querySelector("#save-load")!.addEventListener("click", async () => {
+  const result = await decode<SaveData>(saveIn.value);
+  if (!result.ok || !result.data) {
+    setStatus(result.message, "bad");
+    return;
+  }
+  const data = result.data;
+  if (data.v !== 1) {
+    setStatus("這串碼來自不同版本的遊戲，無法讀取", "bad");
+    return;
+  }
+
+  slots.restore(data.slots, data.activeSlot, data.unlockedSlots);
+  const active = slots.scriptAt(slots.activeIndex);
+  if (active) editor.load(active);
+  if (data.shield) shapeEditor.load(data.shield);
+  world.bossKills = data.bossKills ?? 0;
+  handledBossKills = world.bossKills;
+  mergeRecords(data.best ?? []);
+  renderSlots();
+
+  // 身分一定要講出來 —— 這是「用了別人的碼」唯一會被發現的地方
+  const who = describe(data.id);
+  if (!result.authentic) {
+    setStatus(`已讀取 ${who} 的存檔，但這串碼被修改過`, "warn");
+  } else {
+    setStatus(`已讀取 ${who} 的存檔（${data.at}）`, "ok");
+  }
+});
 
 function loadPreset(i: number): void {
   editor.load(PRESETS[i]); // 觸發 onChange，腳本會自動套用
@@ -362,7 +459,8 @@ function frame(now: number): void {
   }
 
   // 在積木欄位裡打字時，按鍵不該被當成遊戲操作
-  const typing = document.activeElement?.tagName === "INPUT";
+  const tag = document.activeElement?.tagName;
+  const typing = tag === "INPUT" || tag === "TEXTAREA";
   if (!typing) {
     if (gameOver.isOpen) {
       // 結算畫面只認 R：這時按空白鍵或數字鍵都沒有意義

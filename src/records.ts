@@ -54,3 +54,28 @@ export function formatTime(seconds: number): string {
   const s = Math.floor(seconds % 60);
   return `${m}:${String(s).padStart(2, "0")}`;
 }
+
+/**
+ * 併入外部來源的成績（分享碼帶進來的）。
+ *
+ * 合併而非覆蓋：學生換電腦讀檔時，兩邊的紀錄都該留著 ——
+ * 直接覆蓋會讓他在這台機器上的成績憑空消失。
+ */
+export function mergeRecords(incoming: RunRecord[]): RunRecord[] {
+  const seen = new Set<string>();
+  const merged = [...loadRecords(), ...incoming]
+    .filter((r) => {
+      const key = `${r.at}|${r.time}|${r.script}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => b.time - a.time)
+    .slice(0, KEEP);
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+  } catch {
+    // 同上：存不下來不影響遊戲
+  }
+  return merged;
+}

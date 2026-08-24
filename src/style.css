@@ -777,3 +777,91 @@ html, body {
   border-color: var(--accent);
   font-weight: 600;
 }
+
+/* 存檔分頁。與積木區共用同一塊空間，切換方式跟其他分頁一致 */
+#savepanel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+#savepanel.hidden {
+  display: none;
+}
+
+.save-section {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.save-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.save-row {
+  display: flex;
+  gap: 7px;
+}
+
+#savepanel input,
+#savepanel textarea {
+  width: 100%;
+  padding: 7px 9px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--fg);
+  background: #0b1220;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+#savepanel textarea {
+  height: 74px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+#savepanel input:focus,
+#savepanel textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.save-btn {
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0b0f18;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.save-btn.ghost {
+  color: var(--fg);
+  background: #16202f;
+  border: 1px solid var(--border);
+  font-weight: 400;
+}
+
+.save-note {
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--dim);
+}
+
+.save-note.ok { color: #9df5c4; }
+.save-note.warn { color: #ffd8a8; }
+.save-note.bad { color: #ffb3b8; }

@@ -21,10 +21,38 @@
       <div id="editor-tabs">
         <button type="button" data-tab="attack" class="active">攻擊腳本</button>
         <button type="button" data-tab="shape">護盾形狀</button>
+        <button type="button" data-tab="save">存檔</button>
       </div>
       <div id="slots"></div>
       <div id="blockly"></div>
       <div id="blockly-shape"></div>
+      <div id="savepanel" class="hidden">
+        <div class="save-section">
+          <div class="save-title">我是誰</div>
+          <div class="save-row">
+            <input id="save-class" type="text" placeholder="班級（例：三年二班）" maxlength="16" />
+            <input id="save-seat" type="text" placeholder="座號" maxlength="4" />
+          </div>
+          <div class="save-note">
+            班級座號會寫進分享碼裡。交作業時老師看得出這是誰的存檔 ——
+            用別人的碼會顯示別人的名字。
+          </div>
+        </div>
+
+        <div class="save-section">
+          <div class="save-title">產生分享碼</div>
+          <button id="save-make" type="button" class="save-btn">產生</button>
+          <textarea id="save-out" readonly placeholder="按「產生」後這裡會出現一長串文字，全選複製交給老師"></textarea>
+          <button id="save-copy" type="button" class="save-btn ghost">複製</button>
+        </div>
+
+        <div class="save-section">
+          <div class="save-title">讀取分享碼</div>
+          <textarea id="save-in" placeholder="把分享碼貼在這裡"></textarea>
+          <button id="save-load" type="button" class="save-btn ghost">讀取</button>
+          <div id="save-status" class="save-note"></div>
+        </div>
+      </div>
       <div id="panel-status"></div>
       <div id="preview">
         <span class="preview-label">試射預覽</span>

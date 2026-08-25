@@ -129,6 +129,29 @@ export class Editor {
     return this.rare.get(type) ?? 0;
   }
 
+  /** 匯出稀有積木的擁有量，給存檔用 */
+  rareSnapshot(): Record<string, number> {
+    return Object.fromEntries(this.rare);
+  }
+
+  /**
+   * 從存檔還原稀有積木的擁有量。
+   *
+   * 只還原**數量**，不還原它們被放在腳本的哪裡 —— 那是學生要重新想的部分。
+   */
+  restoreRare(counts: Record<string, number>): void {
+    this.rare.clear();
+    const maxInstances: Record<string, number> = {};
+    for (const [type, n] of Object.entries(counts)) {
+      if (n > 0) {
+        this.rare.set(type, n);
+        maxInstances[type] = n;
+      }
+    }
+    this.workspace.options.maxInstances = maxInstances;
+    this.workspace.updateToolbox(buildToolbox(this.available, this.rare));
+  }
+
   /**
    * 解鎖一塊稀有積木。
    *

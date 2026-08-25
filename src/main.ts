@@ -264,16 +264,13 @@ document.querySelector("#save-make")!.addEventListener("click", async () => {
     return;
   }
   saveIdentity(id);
-  slots.store(editor.read()); // 先把編輯中的腳本寫回槽位，否則會存到舊的
-  const snap = slots.snapshot();
+  // 只存玩來的資源，不存腳本 —— 重寫才會記住（見 save.ts 的說明）
   const data: SaveData = {
-    v: 1,
+    v: 2,
     id,
-    slots: snap.slots,
-    activeSlot: snap.active,
-    unlockedSlots: snap.unlocked,
-    shield: shapeEditor.read(),
     bossKills: world.bossKills,
+    unlockedSlots: slots.unlocked,
+    rareBlocks: editor.rareSnapshot(),
     best: loadRecords(),
     at: new Date().toISOString().slice(0, 16).replace("T", " "),
   };
@@ -299,7 +296,7 @@ async function loadFromText(text: string): Promise<void> {
     return;
   }
   const data = result.data;
-  if (data.v !== 1) {
+  if (data.v !== 2) {
     setStatus("這個存檔來自不同版本的遊戲，無法讀取", "bad");
     return;
   }
@@ -341,19 +338,23 @@ saveDrop.addEventListener("drop", async (e) => {
 
 document.querySelector("#save-demo")!.addEventListener("click", () => {
   // 直接套用物件，不繞分享碼字串 —— 長字串經過複製貼上極易出錯
-  applySave(demoSave(shapeEditor.read()));
-  setStatus("已載入示範存檔：兩套腳本，按數字鍵 1、2 切換", "ok");
+  applySave(demoSave());
+  setStatus("已載入示範資源：兩個腳本槽、追蹤彈與爆裂彈各 1 個。腳本要自己寫", "ok");
 });
 
-/** 把一份存檔套用到目前的遊戲狀態 */
+/**
+ * 把一份存檔套用到目前的遊戲狀態。
+ *
+ * 只還原資源（王的擊殺數、槽位數、稀有積木數量），**不還原腳本** ——
+ * 學生要自己把程式重寫一次，那是這個設計刻意保留的學習環節。
+ */
 function applySave(data: SaveData): void {
-  slots.restore(data.slots, data.activeSlot, data.unlockedSlots);
-  const active = slots.scriptAt(slots.activeIndex);
-  if (active) editor.load(active);
-  if (data.shield) shapeEditor.load(data.shield);
   world.bossKills = data.bossKills ?? 0;
   handledBossKills = world.bossKills;
+  slots.restore(data.unlockedSlots ?? 1, editor.read());
+  editor.restoreRare(data.rareBlocks ?? {});
   renderSlots();
+  updatePanelStatus();
 }
 
 function loadPreset(i: number): void {

@@ -1,5 +1,3 @@
-import { toLines } from "./script/format";
-import { countBlocks, type Script } from "./script/ast";
 import { formatTime } from "./records";
 import { describe, type SaveData } from "./save";
 
@@ -17,7 +15,13 @@ import { describe, type SaveData } from "./save";
  */
 
 /** 存檔碼那一行的開頭，解析時用它定位 */
-const CODE_PREFIX = "LSV1";
+const CODE_PREFIX = "LSV2";
+
+const RARE_NAME: Record<string, string> = {
+  ls_homing: "追蹤彈",
+  ls_explode: "爆裂彈",
+  ls_split: "分裂彈",
+};
 
 export function buildMarkdown(data: SaveData, code: string): string {
   const lines: string[] = [];
@@ -25,35 +29,36 @@ export function buildMarkdown(data: SaveData, code: string): string {
   lines.push("");
   lines.push(`- **姓名**：${describe(data.id)}`);
   lines.push(`- **產生時間**：${data.at}`);
-  lines.push(`- **打贏王**：${data.bossKills} 隻`);
-  lines.push(`- **腳本槽**：${data.unlockedSlots} 套`);
+  lines.push("");
+
+  lines.push("## 玩到的資源");
+  lines.push("");
+  lines.push(`- 打贏王：**${data.bossKills}** 隻`);
+  lines.push(`- 腳本槽：**${data.unlockedSlots}** 個`);
+
+  const rare = Object.entries(data.rareBlocks ?? {}).filter(([, n]) => n > 0);
+  if (rare.length > 0) {
+    lines.push(`- 稀有積木：`);
+    for (const [type, n] of rare) {
+      lines.push(`    - ${RARE_NAME[type] ?? type} ×${n}`);
+    }
+  } else {
+    lines.push(`- 稀有積木：還沒有`);
+  }
 
   const best = data.best[0];
   if (best) {
-    lines.push(
-      `- **最佳成績**：${formatTime(best.time)}（第 ${best.round} 輪，擊殺 ${best.kills}）`,
-    );
-  }
-  lines.push("");
-
-  lines.push("## 攻擊腳本");
-  data.slots.forEach((script, i) => {
-    if (!script) return;
     lines.push("");
-    lines.push(`### 腳本 ${i + 1}　${script.name}　（${countBlocks(script.body)} 格）`);
+    lines.push("## 最佳成績");
     lines.push("");
-    lines.push(renderScript(script));
-  });
-
-  if (data.shield) {
-    lines.push("");
-    lines.push("## 護盾形狀");
-    lines.push("");
-    lines.push(renderScript(data.shield));
+    lines.push(`- ${formatTime(best.time)}（第 ${best.round} 輪，擊殺 ${best.kills}）`);
   }
 
   lines.push("");
   lines.push("---");
+  lines.push("");
+  lines.push("**這個存檔不包含腳本。** 資源是玩來的所以幫你留著，");
+  lines.push("但程式要自己重寫一次 —— 重寫才會真的記住。");
   lines.push("");
   lines.push("以下是給遊戲讀取用的存檔碼，**請不要修改**：");
   lines.push("");
@@ -62,19 +67,6 @@ export function buildMarkdown(data: SaveData, code: string): string {
   lines.push("```");
   lines.push("");
   return lines.join("\n");
-}
-
-/**
- * 把腳本排版成縮排文字。
- *
- * 這是給老師看的：巢狀迴圈在縮排上一目瞭然，不必開遊戲就能判斷
- * 學生到底有沒有用迴圈、用了幾層。
- */
-function renderScript(script: Script): string {
-  const body = toLines(script.body)
-    .map((line) => `${"  ".repeat(line.depth)}${line.text}`)
-    .join("\n");
-  return ["```", body || "（空白）", "```"].join("\n");
 }
 
 /** 從檔案內容裡找出存檔碼。允許老師在檔案裡加註解，只要那一行還在 */

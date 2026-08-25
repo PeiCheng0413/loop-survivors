@@ -24,9 +24,14 @@
  */
 const SIGN_KEY = "loop-survivors/v1/tamper-evident";
 
+/**
+ * 遮罩用的種子。與 SIGN_KEY 分開，破解時要分別找出兩者。
+ */
+const MASK_SEED = "loop-survivors/v2/mask";
+
 /** 未壓縮與已壓縮的前綴，讓解碼端知道要不要解壓 */
-const PREFIX_PLAIN = "LSV1";
-const PREFIX_DEFLATE = "LSV1Z";
+const PREFIX_PLAIN = "LSV2";
+const PREFIX_DEFLATE = "LSV2Z";
 
 export interface Identity {
   /** 班級，例如「三年二班」 */
@@ -51,8 +56,11 @@ export async function encode<T>(payload: T): Promise<string> {
   const json = JSON.stringify(payload);
   const bytes = new TextEncoder().encode(json);
   const packed = await deflate(bytes);
+  // 遮罩：讓內容不再是一眼認得出的 deflate 串流。
+  // 想改存檔的人必須先發現有這一層，才有辦法解壓
+  const masked = await mask(packed ?? bytes);
 
-  const body = toBase64Url(packed ?? bytes);
+  const body = toBase64Url(masked);
   const prefix = packed ? PREFIX_DEFLATE : PREFIX_PLAIN;
   const sign = await signature(prefix + body);
   // 分隔符用「.」而非「-」：base64url 的字元集本來就包含 - 與 _，
@@ -75,7 +83,7 @@ export async function decode<T>(code: string): Promise<DecodeResult<T>> {
   const authentic = (await signature(prefix + body)) === sign;
 
   try {
-    const raw = fromBase64Url(body);
+    const raw = await mask(fromBase64Url(body));
     const bytes = prefix === PREFIX_DEFLATE ? await inflate(raw) : raw;
     const data = JSON.parse(new TextDecoder().decode(bytes)) as T;
     return {
@@ -115,6 +123,34 @@ async function signature(input: string): Promise<string> {
   );
   const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(input));
   return toBase64Url(new Uint8Array(mac)).slice(0, 12);
+}
+
+/**
+ * 以種子產生的位元流做 XOR 遮罩。XOR 是對稱的，同一個函式負責加解。
+ *
+ * ## 這一層的用意
+ *
+ * 它擋不住真的想破解的人 —— 金鑰就在打包後的 JavaScript 裡（見檔頭說明）。
+ * 它的作用是**製造認知成本**：想改存檔的人必須依序想通
+ * base64 → 遮罩 → deflate → JSON → 重算簽章，五層都得懂。
+ *
+ * 而如果學生真的走完這條路 —— 那他學到的東西比這個遊戲本身還多。
+ * **偷吃步在這裡也是一種學習路徑**，所以我們不需要把它堵死，
+ * 只需要讓它貴到不像捷徑。
+ */
+async function mask(bytes: Uint8Array): Promise<Uint8Array> {
+  const out = new Uint8Array(bytes.length);
+  let stream = new Uint8Array(0);
+  let block = 0;
+  for (let i = 0; i < bytes.length; i++) {
+    const offset = i % 32;
+    if (offset === 0) {
+      const seed = new TextEncoder().encode(`${MASK_SEED}/${block++}`);
+      stream = new Uint8Array(await crypto.subtle.digest("SHA-256", seed));
+    }
+    out[i] = bytes[i] ^ stream[offset];
+  }
+  return out;
 }
 
 /** 壓縮。瀏覽器沒有 CompressionStream 時回傳 null，改用未壓縮格式 */

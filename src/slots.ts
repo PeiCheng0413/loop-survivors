@@ -43,16 +43,18 @@ export class SlotManager {
     return this.scripts[index] ?? null;
   }
 
-  /** 匯出目前所有槽位的狀態，給分享碼用 */
-  snapshot(): { slots: (Script | null)[]; active: number; unlocked: number } {
-    return { slots: [...this.scripts], active: this.active, unlocked: this.unlockedCount };
-  }
-
-  /** 從分享碼還原。解鎖數同時寫回 localStorage，讓它繼續是永久能力 */
-  restore(slots: (Script | null)[], active: number, unlocked: number): void {
-    for (let i = 0; i < MAX_SLOTS; i++) this.scripts[i] = slots[i] ?? null;
+  /**
+   * 從存檔還原**槽位數量**。腳本內容不還原 —— 那要學生自己重寫。
+   *
+   * 每一格都放一份目前腳本的複製當起點，理由與 unlockNext 相同：
+   * 空白的槽位在戰鬥中毫無用處。
+   */
+  restore(unlocked: number, current: Script): void {
     this.unlockedCount = Math.min(MAX_SLOTS, Math.max(1, unlocked));
-    this.active = Math.min(this.unlockedCount - 1, Math.max(0, active));
+    for (let i = 0; i < MAX_SLOTS; i++) {
+      this.scripts[i] = i < this.unlockedCount ? structuredClone(current) : null;
+    }
+    this.active = 0;
     try {
       localStorage.setItem(STORAGE_KEY, String(this.unlockedCount));
     } catch {

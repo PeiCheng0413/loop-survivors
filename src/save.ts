@@ -1,33 +1,31 @@
-import type { Script } from "./script/ast";
 import type { Identity } from "./sharecode";
 import type { RunRecord } from "./records";
 
 /**
- * 分享碼裡存什麼。
+ * 存檔裡存什麼。
  *
- * ## 存「跨局的進度」，不存單局的即時狀態
+ * ## 只存「玩來的資源」，不存「怎麼運用資源」
  *
- * 存的是**學生寫過的程式與拿到的能力**：腳本槽、護盾形狀、解鎖數、最佳紀錄。
- * 不存等級、屬性、場上敵人這些單局狀態。
+ * 存：打贏幾隻王、拿到幾個腳本槽、各種稀有積木有幾個。
+ * **不存腳本本身。**
  *
- * 理由是 roguelike 的一局本身就是挑戰，中途存檔再讀回來會讓它失去意義；
- * 而且「讀檔後從第三輪的難度開始、血量全滿」在遊戲上也說不通。
+ * 理由是教學的：**重寫才會記住**。學生下一節課重新把迴圈拖出來，
+ * 是在做提取練習（retrieval practice），那正是記憶形成的地方 ——
+ * 存下腳本等於幫他跳過最有價值的那一段。
  *
- * 學生真正怕失去的是**自己寫的腳本** —— 那可能花了整節課。換一台電腦、
- * 下週再上課，只要腳本和解鎖還在，就不算重頭來。
+ * 而資源是「玩」換來的，重玩一次要再花好幾分鐘，重複拿沒有學習意義，
+ * 所以該存。**分界線是：靠時間換到的存起來，靠思考換到的重做一遍。**
  */
 export interface SaveData {
-  /** 格式版本。之後改結構時用來判斷要不要轉換 */
-  v: 1;
+  /** 格式版本。v1 存過腳本，v2 起只存資源 */
+  v: 2;
   id: Identity;
-  /** 攻擊腳本的各個槽位（未解鎖的為 null） */
-  slots: (Script | null)[];
-  activeSlot: number;
-  unlockedSlots: number;
-  /** 護盾形狀的腳本 */
-  shield: Script | null;
   /** 已擊殺的王數量 —— 解鎖進度的依據 */
   bossKills: number;
+  /** 已解鎖幾個腳本槽 */
+  unlockedSlots: number;
+  /** 各稀有積木的擁有量，例如 { ls_homing: 2 } */
+  rareBlocks: Record<string, number>;
   best: RunRecord[];
   /** 產生時間，給老師核對用 */
   at: string;
@@ -65,51 +63,19 @@ export function describe(id: Identity): string {
 }
 
 /**
- * 示範存檔的內容。
+ * 示範存檔：直接給資源，不給腳本。
  *
- * 直接在程式裡組出來，不必經過分享碼的字串傳遞 —— 長字串靠人工複製
- * 極易出錯（實測就發生過：同樣長度、同樣字元集，只錯一個字元）。
- * 老師課堂示範、或想快速看到「有兩個腳本槽長怎樣」時用得上。
+ * 課堂示範時用來跳過「先玩十分鐘賺解鎖」的步驟，直接展示
+ * 兩個腳本槽與稀有積木長什麼樣 —— 但腳本仍然要當場寫，
+ * 那正是要示範的東西。
  */
-export function demoSave(shield: Script): SaveData {
-  let n = 0;
-  const id = () => `demo${++n}`;
-  const spread: Script = {
-    name: "散射流",
-    capacity: 14,
-    body: [
-      {
-        kind: "repeat", id: id(), times: 8,
-        body: [
-          { kind: "turn", id: id(), degrees: 45 },
-          { kind: "fire", id: id() },
-        ],
-      },
-    ],
-  };
-  const charged: Script = {
-    name: "蓄力流",
-    capacity: 14,
-    body: [
-      { kind: "aim", id: id(), target: "nearest" },
-      {
-        kind: "repeat", id: id(), times: 3,
-        body: [
-          { kind: "fire", id: id() },
-          { kind: "wait", id: id(), seconds: 0.35 },
-        ],
-      },
-    ],
-  };
-
+export function demoSave(): SaveData {
   return {
-    v: 1,
+    v: 2,
     id: { klass: "示範班", seat: "0" },
-    slots: [spread, charged, null],
-    activeSlot: 0,
-    unlockedSlots: 2,
-    shield,
     bossKills: 2,
+    unlockedSlots: 2,
+    rareBlocks: { ls_homing: 1, ls_explode: 1 },
     best: [],
     at: new Date().toISOString().slice(0, 16).replace("T", " "),
   };

@@ -42,7 +42,7 @@
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
+npm run dev      # 開發伺服器
 npm run build    # 產出純靜態檔到 dist/
 ```
 

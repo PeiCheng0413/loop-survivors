@@ -187,7 +187,7 @@ export const MY_WEAPON: WeaponDef = {
 ## 開發
 
 ```bash
-npm run dev      # http://localhost:5173
+npm run dev      # 開發伺服器
 npm run build    # tsc + vite build，產出純靜態檔
 npm run sim      # 無頭模擬，量測各腳本的實際輸出（npm run sim -- 30 可指定秒數）
 npm run verify   # 無頭驗證積木序列化來回轉換
